@@ -66,5 +66,4 @@ public class PerlinNoise {
         // normalisasi hasil akhir ke range 0..1 karna output asli perlin itu -1..1
         return (finalValue + 1.0f) / 2.0f;
     }
-
 }

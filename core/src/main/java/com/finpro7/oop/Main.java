@@ -5,13 +5,20 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.Material;
+import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.attributes.*;
+import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.DefaultTextureBinder;
 import com.badlogic.gdx.graphics.g3d.utils.RenderContext;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.assets.AssetManager;
 
 import com.finpro7.oop.world.Terrain;
 
@@ -23,6 +30,10 @@ public class Main extends ApplicationAdapter {
     // buat world gamenya
     private PerlinNoise perlin;
     private Terrain terrain;
+    private Model treeModel;
+    private AssetManager assets;
+    private Array<ModelInstance> treeInstances = new Array<>();
+    private ModelBatch modelBatch; // batch buat render objek 3D kyak pohon, musuh, dll
 
     private float yawDeg; // buat kamera nengok kanan kiri
     private float pitchDeg; // nengok atas bawah
@@ -33,8 +44,8 @@ public class Main extends ApplicationAdapter {
     private float margin = 1.5f; // batas aman biar ga jatoh ke ujung stiap sisi map void
     // bagian lompat player
     private float verticalVelocity = 0f; // kecepatan vertikal naik/turun
-    private float gravity = 25f; // ini kekuatan tarikan world, makin gede makin cepet jatuh
-    private float jumpForce = 12f; // kekuatan dorongan kaki pass loncat, makin tinggi lomcatnya makin tinggi
+    private float gravity = 30f; // ini kekuatan tarikan world, makin gede makin cepet jatuh
+    private float jumpForce = 15f; // kekuatan dorongan kaki pass loncat, makin tinggi lomcatnya makin tinggi
     private boolean isGrounded = false; // status lagi napak tanah atau lagi loncat
     private int skipMouseFrames = 3; // buat skip 3 frame awal, nyegah snap
 
@@ -43,12 +54,14 @@ public class Main extends ApplicationAdapter {
         // setup kamera perspektif biar kyak mata manusia ada jauh dekatnya
         cam = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         cam.near = 0.1f; // jarak pandang terdekat
-        cam.far = 800f; // jarak pandang terdekat
+        cam.far = 800f; // jarak pandang terjauh
         // buat setup pencahayaan biar gak gelap gulita
         env = new Environment();
         env.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.6f, 0.6f, 0.6f, 1f)); // cahaya dasar
         env.add(new DirectionalLight().set(1f, 1f, 1f, -0.6f, -1f, -0.3f)); // matahari
         renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
+        // [BARU] Init ModelBatch
+        modelBatch = new ModelBatch();
         // buat setup generator perlin noisenya biar gunungnya random tiap kali playy
         perlin = new PerlinNoise();
 //        perlin.terrainHeight = 6f;
@@ -57,9 +70,27 @@ public class Main extends ApplicationAdapter {
         perlin.frequencyZ = 0.08f;
         perlin.offsetX = MathUtils.random(0f, 999f); // geser seed random
         perlin.offsetZ = MathUtils.random(0f, 999f);
+        assets = new AssetManager(); // setup asset manager, buat model model 3d
+        assets.load("models/pohon.g3dj", Model.class); // load file model pohon dari folder assets/models/
+        assets.load("textures/batang_pohon.png", Texture.class);
+        assets.load("textures/daun_pohon.png", Texture.class);
+        assets.finishLoading(); // ngeloading dulu biar simpel codingannya
+        treeModel = assets.get("models/pohon.g3dj", Model.class); // ambil model buat pohon
+        // biar daunnya transparan & keliatan dari dua sisi
+        for(Material mat : treeModel.materials){
+            // cek material daun index 1
+            if(treeModel.materials.indexOf(mat, true) == 1){
+                mat.set(
+                    new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                    FloatAttribute.createAlphaTest(0.25f),
+                    IntAttribute.createCullFace(GL20.GL_NONE)
+                );
+            }
+        }
 //        terrain = new Terrain(env, perlin, 160, 160, 80f, 80f);
         // bikin terrainnya grid 254x254, ukuran worldnya 320x320 meter
         terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
+        terrain.generateTrees(treeModel, treeInstances, 600); // generate pohon pohonnya di terrain sebanyak 600 secara random
         // buat ngatur spawn playernya
         Vector3 startPos = new Vector3();
         terrain.getRoadStartPos(startPos); // minta koordinat start, biar di awal jalan spiral startnya
@@ -243,12 +274,21 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); // optimasi biar ga render sisi belakang
         renderContext.begin();
-        terrain.render(cam, renderContext);
+        terrain.render(cam, renderContext); // render tanah
         renderContext.end();
+        // ModelBatch buat ngegambar ModelInstance + Lighting
+        modelBatch.begin(cam);
+        for(ModelInstance tree : treeInstances){
+            modelBatch.render(tree, env); // masukin ke env biar pohonnya kena cahaya matahari dan keliatan
+        }
+        modelBatch.end();
     }
 
     @Override
     public void dispose() {
         if(terrain != null) terrain.dispose();
+        if(treeModel != null) treeModel.dispose(); // bersihin tree
+        if(modelBatch != null) modelBatch.dispose(); // bersihin modelbatch
+        if(assets != null) assets.dispose(); // bersihin assets
     }
 }

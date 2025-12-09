@@ -2,15 +2,15 @@ package com.finpro7.oop.world;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.*;
-import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.Material;
-import com.badlogic.gdx.graphics.g3d.Renderable;
+import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
 import com.badlogic.gdx.graphics.g3d.utils.RenderContext;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.finpro7.oop.PerlinNoise;
 
@@ -57,6 +57,8 @@ public class Terrain implements Disposable {
     private int vertsX, vertsZ;
     private float halfW, halfD;
     private float cellX, cellZ;
+
+    private final Vector3 tmpNormal = new Vector3();
 
     public Terrain(Environment env, PerlinNoise perlin, int gridX, int gridZ, float width, float depth) {
         this.gridX = gridX;
@@ -333,6 +335,74 @@ public class Terrain implements Disposable {
         float nextZ = r * MathUtils.sin(lookAheadTheta);
         float nextY = heightAt(nextX, nextZ); // ambi tingginya juga
         out.set(nextX, nextY, nextZ);
+    }
+
+    // buat dapetin vektor normal biar pohonnya bisa miring sesuai posisi tanah
+    private void getNormalAt(float x, float z, Vector3 out){
+        float eps = 0.5f; // jarak sampling
+        // ambil ketinggian di kiri kanan atas bawah
+        float hL = getHeight(x - eps, z);
+        float hR = getHeight(x + eps, z);
+        float hD = getHeight(x, z - eps);
+        float hU = getHeight(x, z + eps);
+        // rumus buat dapett normal dari heightmap di atas
+        out.set(hL - hR, 2f * eps, hD - hU).nor();
+    }
+
+    // method buat nanem pohon
+    public void generateTrees(Model model, Array<ModelInstance> instances, int count){
+        // set min/max ukuran pohon
+        float minScale = 2.5f;
+        float maxScale = 3.0f;
+        float roadSafetyMargin = 2.5f; // jarak aman nanem pohon dari jalan
+        for(int i = 0; i < count; i++){ // ngeloop sebanyak pohon yg mau dibuat
+            // cari posisi nanem x sama z random
+            float x = MathUtils.random(-width/2, width/2);
+            float z = MathUtils.random(-depth/2, depth/2);
+            // buat ngecek jarak x z random ke jalan biar gak tumbuh di jalan
+            if(closestRoadPointXZ(x, z, tmpRoad)){
+                float roadCx = tmpRoad.x;
+                float roadCz = tmpRoad.z;
+                float dist = (float)Math.sqrt((x - roadCx)*(x - roadCx) + (z - roadCz)*(z - roadCz));
+                if(dist < (roadWidth * 0.5f) + roadSafetyMargin){
+                    i--;
+                    continue;
+                }
+            }
+            // ngecek radius puncak
+            float distToCenter = (float)Math.sqrt(x*x + z*z);
+            // semakin deket puncak pohonnya tidak bisa ditanem
+            if(distToCenter < 35f){
+                i--;
+                continue;
+            }
+            // bagian ngitung kemiringan
+            float y = getHeight(x, z);
+            getNormalAt(x, z, tmpNormal); // simpen arah vektor normal yg didapet ke tmpNormal
+            // bagian nanem pohonnya
+            ModelInstance tree = new ModelInstance(model, "tree");
+            // masukin dikit 0.5f biar akar makin aman gk kelihatan mengambang
+            Vector3 position = new Vector3(x, y - 0.5f, z);
+            // bagian rotasi pohon dari lurus ke vektor normal tadi
+            Vector3 treeUp = new Vector3(Vector3.Y);
+            // geser pelan pelan ke arah normal tanah biar gk terlalu miring
+            // 0.0f = tegak lurus kaku kyak tiang listrik
+            // 1.0f = nempel miring banget
+            // 0.3f = ini miring dikit aja biar natural
+            float tiltFactor = 0.35f;
+            treeUp.lerp(tmpNormal, tiltFactor).nor();
+            // buat rotasiinnya berdasarkan vector tadi
+            Quaternion rotation = new Quaternion();
+            rotation.setFromCross(Vector3.Y, treeUp);
+            // tanem sesuai posisi sama rotasi tadi
+            tree.transform.set(position, rotation);
+            // ini rotasi yaw nya, biar pohonnya gak madep ke satu arah doang, kita puter sumbu y lokalnya
+            tree.transform.rotate(Vector3.Y, MathUtils.random(360f));
+            // ini buat atur ukuran pohonnya random, ada yg normal ada yg agak gede
+            float scale = MathUtils.random(minScale, maxScale);
+            tree.transform.scale(scale, scale, scale);
+            instances.add(tree);
+        }
     }
 
     public void render(Camera cam, RenderContext context){

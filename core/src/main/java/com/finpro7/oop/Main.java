@@ -31,6 +31,11 @@ public class Main extends ApplicationAdapter {
     private float sprintMul = 2.0f; // buat pengali jalan cepernya kalo pencet shift
     private float eyeHeight = 2.0f; // tinggi badan player biar pandangannya gak nyusruk tanah
     private float margin = 1.5f; // batas aman biar ga jatoh ke ujung stiap sisi map void
+    // bagian lompat player
+    private float verticalVelocity = 0f; // kecepatan vertikal naik/turun
+    private float gravity = 25f; // ini kekuatan tarikan world, makin gede makin cepet jatuh
+    private float jumpForce = 12f; // kekuatan dorongan kaki pass loncat, makin tinggi lomcatnya makin tinggi
+    private boolean isGrounded = false; // status lagi napak tanah atau lagi loncat
 
     @Override
     public void create() {
@@ -124,14 +129,30 @@ public class Main extends ApplicationAdapter {
         // buat tes doang, kalo space/ctrl bisa terbang
 //        if(Gdx.input.isKeyPressed(Input.Keys.SPACE)) cam.position.y += speed * 0.6f * delta;
 //        if(Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)) cam.position.y -= speed * 0.6f * delta;
+        // kalo pencet spasi dan lagi napak tanah biar gaa double jump di udara
+        if(Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && isGrounded){
+            verticalVelocity = jumpForce; // dorong ke atas alias loncat
+            isGrounded = false; // set jadi lagi melayang sekarang
+        }
     }
 
     // buat logika napak tanahnyaa
-    private void clampAndStickToTerrain(){
+    private void clampAndStickToTerrain(float delta){
         // batesin gerak biar ga keluar map atau biar gk clamp
         cam.position.x = terrain.clampX(cam.position.x, margin);
         cam.position.z = terrain.clampZ(cam.position.z, margin);
-        cam.position.y = terrain.getHeight(cam.position.x, cam.position.z) + eyeHeight; // buat cari tinggi tanah x z di terrain
+//        cam.position.y = terrain.getHeight(cam.position.x, cam.position.z) + eyeHeight; // buat cari tinggi tanah x z di terrain
+        verticalVelocity -= gravity * delta; // ngurangin kecepatan vertikal pake gravitasi tiap frame
+        cam.position.y += verticalVelocity * delta; // nerapin kecepatan juga ke posisi kamera
+        // ngecek nyentuh tanah apa engga
+        float groundHeight = terrain.getHeight(cam.position.x, cam.position.z);
+        float minHeight = groundHeight + eyeHeight;
+        // kalo posisi kita nembus ke bawah tanah
+        if(cam.position.y < minHeight){
+            cam.position.y = minHeight; // balikin ke atas tanah
+            verticalVelocity = 0f; // reset kecepatan jatuhnya
+            isGrounded = true; // set kaki napak tanah
+        }else isGrounded = false; // kaloo ga napak tanah berarti lagi loncat jadi set ke false;
         cam.update();
     }
 
@@ -141,7 +162,7 @@ public class Main extends ApplicationAdapter {
         // update logika game
         updateMouseLook();
         updateMovement(delta);
-        clampAndStickToTerrain();
+        clampAndStickToTerrain(delta);
         // bersihin layar
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClearColor(0.08f, 0.1f, 0.14f, 1f);

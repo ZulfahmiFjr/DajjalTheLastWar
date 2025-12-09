@@ -140,8 +140,63 @@ public class Main extends ApplicationAdapter {
         if(Gdx.input.isKeyPressed(Input.Keys.A)) move.sub(right);
         // buat eksekusi gerak
         if(move.len2() > 0){
-            move.nor().scl(speed * delta);
-            cam.position.add(move);
+            move.nor();
+            // mecah gerakan satu frame jadi 4 step, biar ga ada celah buat nembus tembok spiral pas lagi ngebut/loncat
+            int substeps = 4;
+            float subDelta = delta / substeps;
+            for(int i = 0; i < substeps; i++){
+                float stepX = move.x * speed * subDelta;
+                float stepZ = move.z * speed * subDelta;
+                float probeFar = 0.6f;
+                float probeNear = 0.2f;
+                float r = (float)Math.sqrt(cam.position.x * cam.position.x + cam.position.z * cam.position.z);
+                float slopeLimit = 0.6f; // keketatan biar ga bisa panjat tebing
+                // pas dekat puncak radius < 80 kita toleransi lebih tinggi biar bisa lewat gundukan transisinya
+                if(r < 80f)  slopeLimit = 1.4f;
+                // update posisi tanah tempat kita berdiri setiap step kecil
+                float currentY = terrain.getHeight(cam.position.x, cam.position.z);
+                boolean safeX = true;
+                // sensor jauh x
+                float dirX = Math.signum(move.x);
+                float dirZ = Math.signum(move.z);
+                float probeX_Far = cam.position.x + dirX * probeFar;
+                float diffX_Far = terrain.getHeight(probeX_Far, cam.position.z) - currentY;
+                if(diffX_Far > slopeLimit) safeX = false;
+                // sensor deket x buat gundukan lancip
+                if(safeX){
+                    float probeX_Near = cam.position.x + dirX * probeNear;
+                    float diffX_Near = terrain.getHeight(probeX_Near, cam.position.z) - currentY;
+                    if(diffX_Near > slopeLimit) safeX = false;
+                }
+                // bisa gerak arah x kalo aman
+                if(safeX)cam.position.x += stepX;
+                // refresh currentY lagi karna x mungkin udah geser
+                currentY = terrain.getHeight(cam.position.x, cam.position.z);
+                float probeDiagX = cam.position.x + move.x * probeFar;
+                float probeDiagZ = cam.position.z + move.z * probeFar;
+                float diffDiag = terrain.getHeight(probeDiagX, probeDiagZ) - currentY;
+                // kalo di depan arah gerak ada tanjakan tebing, stop total
+                if(diffDiag > slopeLimit) continue; // skip substep ini, gaa maju samsek
+                float radius = 0.4f; // kira kira lebar badan player
+                float sideX = -move.z * radius;
+                float sideZ =  move.x * radius;
+                float hL = terrain.getHeight(probeDiagX + sideX, probeDiagZ + sideZ) - currentY;
+                float hR = terrain.getHeight(probeDiagX - sideX, probeDiagZ - sideZ) - currentY;
+                if(Math.max(hL, hR) > slopeLimit) continue;
+                boolean safeZ = true;
+                // sensor jauh z
+                float probeZ_Far  = cam.position.z + dirZ * probeFar;
+                float diffZ_Far = terrain.getHeight(cam.position.x, probeZ_Far) - currentY;
+                if(diffZ_Far > slopeLimit) safeZ = false;
+                // sensor deketnya Z
+                if(safeZ){
+                    float probeZ_Near = cam.position.z + dirZ * probeNear;
+                    float diffZ_Near = terrain.getHeight(cam.position.x, probeZ_Near) - currentY;
+                    if(diffZ_Near > slopeLimit) safeZ = false;
+                }
+                // bisa gerak sumbu z kalo aman
+                if(safeZ) cam.position.z += stepZ;
+            }
         }
         // buat tes doang, kalo space/ctrl bisa terbang
 //        if(Gdx.input.isKeyPressed(Input.Keys.SPACE)) cam.position.y += speed * 0.6f * delta;

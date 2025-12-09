@@ -325,6 +325,16 @@ public class Terrain implements Disposable {
         return MathUtils.lerp(hx0, hx1, tz);
     }
 
+    public void getRoadLookAtPos(Vector3 out){
+        float lookAheadTheta = 0.3f;
+        float r = roadStartRadius - roadPitch * lookAheadTheta; // ngitung radius di titik itu
+        // ngitung koordinat X dan Z
+        float nextX = r * MathUtils.cos(lookAheadTheta);
+        float nextZ = r * MathUtils.sin(lookAheadTheta);
+        float nextY = heightAt(nextX, nextZ); // ambi tingginya juga
+        out.set(nextX, nextY, nextZ);
+    }
+
     public void render(Camera cam, RenderContext context){
         shader.begin(cam, context);
         shader.render(renderable);

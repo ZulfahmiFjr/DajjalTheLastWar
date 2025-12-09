@@ -36,6 +36,7 @@ public class Main extends ApplicationAdapter {
     private float gravity = 25f; // ini kekuatan tarikan world, makin gede makin cepet jatuh
     private float jumpForce = 12f; // kekuatan dorongan kaki pass loncat, makin tinggi lomcatnya makin tinggi
     private boolean isGrounded = false; // status lagi napak tanah atau lagi loncat
+    private int skipMouseFrames = 3; // buat skip 3 frame awal, nyegah snap
 
     @Override
     public void create() {
@@ -43,9 +44,6 @@ public class Main extends ApplicationAdapter {
         cam = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         cam.near = 0.1f; // jarak pandang terdekat
         cam.far = 800f; // jarak pandang terdekat
-        // itung sudut awal kamera biar pas start gaa snapping atau kaget
-        yawDeg = MathUtils.atan2(cam.direction.x, cam.direction.z) * MathUtils.radiansToDegrees;
-        pitchDeg = MathUtils.asin(cam.direction.y) * MathUtils.radiansToDegrees;
         // buat setup pencahayaan biar gak gelap gulita
         env = new Environment();
         env.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.6f, 0.6f, 0.6f, 1f)); // cahaya dasar
@@ -65,12 +63,28 @@ public class Main extends ApplicationAdapter {
         // buat ngatur spawn playernya
         Vector3 startPos = new Vector3();
         terrain.getRoadStartPos(startPos); // minta koordinat start, biar di awal jalan spiral startnya
-        cam.position.set(startPos.x + 5.0f, startPos.y + 4.0f, startPos.z + 5.0f); // buat set posisi kamera
-        cam.lookAt(0f, 0f, 0f);
+        cam.position.set(startPos.x + 5.0f, startPos.y + eyeHeight, startPos.z + 5.0f); // buat set posisi kamera
+        Vector3 lookTarget = new Vector3();
+        // Panggil methodnya aja, jangan itung manual di sini!
+        terrain.getRoadLookAtPos(lookTarget);
+        // ngitung sudut dari vektor posisi
+        float dx = lookTarget.x - cam. position.x;
+        float dy = lookTarget.y - cam. position.y;
+        float dz = lookTarget.z - cam.position.z;
+        // ngitung yaw dan pitch dari vektor offset
+        yawDeg = MathUtils. atan2(dx, dz)*MathUtils.radiansToDegrees;
+        float horizontalDist = (float)Math.sqrt(dx * dx + dz * dz);
+        pitchDeg = MathUtils. atan2(dy, horizontalDist) * MathUtils.radiansToDegrees;
+        // set direction dari sudut yg baru dihitung biar konsisten
+        float yawRad = yawDeg * MathUtils.degreesToRadians;
+        float pitchRad = pitchDeg * MathUtils.degreesToRadians;
+        cam.direction.set(MathUtils. sin(yawRad) * MathUtils.cos(pitchRad), MathUtils.sin(pitchRad), MathUtils.cos(yawRad) * MathUtils.cos(pitchRad)).nor();
+        cam.up.set(Vector3.Y);
         cam.update();
+        skipMouseFrames = 3;
         Gdx.input.setCursorCatched(true); // buat ngunci kursor mouse biar ga lari lari keluar jendela game
-        Gdx.input.getDeltaX();
-        Gdx.input.getDeltaY();
+//        Gdx.input.getDeltaX();
+//        Gdx.input.getDeltaY();
     }
 
     @Override
@@ -87,22 +101,25 @@ public class Main extends ApplicationAdapter {
         if(Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)){
             boolean now = !Gdx.input.isCursorCatched();
             Gdx.input.setCursorCatched(now);
-            if(now){
-                Gdx.input.getDeltaX();
-                Gdx.input.getDeltaY();
-            }
+            if(now) skipMouseFrames = 3;
         }
         // kalo mouse lagi ga dikunci ga usah update kamera
         if(!Gdx.input.isCursorCatched()) return;
+        int dx = Gdx. input.getDeltaX();
+        int dy = Gdx. input.getDeltaY();
+        if(skipMouseFrames > 0){
+            skipMouseFrames--;
+            return;
+        }
+        if(Math.abs(dx) > 100 || Math.abs(dy) > 100) return; // buang delta yg gak wajar, biar gk snap saat awal
         // ambil pergerakan mousenya yaitu deltanya
-        yawDeg -= Gdx.input.getDeltaX() * mouseSens;
-        pitchDeg -= Gdx.input.getDeltaY() * mouseSens;
+        yawDeg -= dx * mouseSens;
+        pitchDeg -= dy * mouseSens;
         pitchDeg = MathUtils.clamp(pitchDeg, -89f, 89f); // batesin nengok atas bawah/clamp biar leher player gaa patah, max 89 derajat
         // buat ngonversi sudut yaw/pitch ke vektor arah jadi arah X, Y, Z
         float yawRad = yawDeg * MathUtils.degreesToRadians;
         float pitchRad = pitchDeg * MathUtils.degreesToRadians;
         cam.direction.set(MathUtils.sin(yawRad) * MathUtils.cos(pitchRad), MathUtils.sin(pitchRad), MathUtils.cos(yawRad) * MathUtils.cos(pitchRad)).nor();
-        cam.up.set(Vector3.Y); // buat mastiin bagian atas itu selalu sumbu Y positif
     }
 
     // ini logika jalan WASDnya
@@ -153,7 +170,7 @@ public class Main extends ApplicationAdapter {
             verticalVelocity = 0f; // reset kecepatan jatuhnya
             isGrounded = true; // set kaki napak tanah
         }else isGrounded = false; // kaloo ga napak tanah berarti lagi loncat jadi set ke false;
-        cam.update();
+//        cam.update();
     }
 
     @Override
@@ -163,6 +180,7 @@ public class Main extends ApplicationAdapter {
         updateMouseLook();
         updateMovement(delta);
         clampAndStickToTerrain(delta);
+        cam.update(); // update kamera cuman di sini, buat nyegah snap
         // bersihin layar
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClearColor(0.08f, 0.1f, 0.14f, 1f);

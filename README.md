@@ -20,6 +20,12 @@ Game ini disubmit untuk memenuhi tugas akhir dan dapat dimainkan melalui **itch.
 | **Muhammad Hashif Jade**       | 2406396786 | _TBA_ |
 | **Zulfahmi Fajri**             | 2406345425 | _TBA_ |
 
+## 👨‍🏫 Aslab Pendamping
+
+| Nama Asisten [Kode]     | NPM        |
+| :---------------------- | :--------- |
+| **Shafwan Hasyim [SH]** | 2306209113 |
+
 ---
 
 ## 📜 Latar Belakang & Lore
@@ -67,6 +73,7 @@ Berikut adalah status pengerjaan proyek kami sejauh ini:
 ### 🔌 Backend & System
 
 - [ ] **Score System:** Mengirim data _wave_ tertinggi ke database setelah _Game Over_.
+- [ ] **Authentication:** Login & Register user sebelum masuk main menu.
 - [ ] **Menu & UI:** Main Menu, HUD (Health/Ammo), dan Pause Screen.
 
 ---

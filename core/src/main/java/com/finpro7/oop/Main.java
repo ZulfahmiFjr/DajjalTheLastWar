@@ -3,23 +3,18 @@ package com.finpro7.oop;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g3d.Environment;
-import com.badlogic.gdx.graphics.g3d.Material;
-import com.badlogic.gdx.graphics.g3d.Model;
-import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.*;
-import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-import com.badlogic.gdx.graphics.g3d.utils.DefaultTextureBinder;
-import com.badlogic.gdx.graphics.g3d.utils.RenderContext;
+import com.badlogic.gdx.graphics.g3d.utils.*;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.assets.AssetManager;
-
 import com.finpro7.oop.world.Terrain;
 
 public class Main extends ApplicationAdapter {
@@ -48,20 +43,25 @@ public class Main extends ApplicationAdapter {
     private float jumpForce = 15f; // kekuatan dorongan kaki pass loncat, makin tinggi lomcatnya makin tinggi
     private boolean isGrounded = false; // status lagi napak tanah atau lagi loncat
     private int skipMouseFrames = 3; // buat skip 3 frame awal, nyegah snap
+    // bagian gerakin kabut
+    private Model fogModel;
+    private Array<ModelInstance> fogInstances = new Array<>();
+    private float fogSpeed = 2.0f; // kecepatan gerak kabutnya
+    private int fogCount = 200; // jumlah gumpalan kabut, makin banyak makin tebel tapi makin berat
 
     @Override
     public void create() {
         // setup kamera perspektif biar kyak mata manusia ada jauh dekatnya
         cam = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         cam.near = 0.1f; // jarak pandang terdekat
-        cam.far = 350f; // jarak pandang terjauh (dipendekin buat efek kabut)
+        cam.far = 200f; // jarak pandang terjauh, dipendekin jadi 100 buat efek kabut
         // buat setup pencahayaan biar gak gelap gulita
         env = new Environment();
         env.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.6f, 0.6f, 0.6f, 1f)); // cahaya dasar
         env.add(new DirectionalLight().set(1f, 1f, 1f, -0.6f, -1f, -0.3f)); // matahari
+        env.set(new ColorAttribute(ColorAttribute.Fog, 0.08f, 0.1f, 0.14f, 1f)); // tambahin atribut kabut ke env
         renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
-        // [BARU] Init ModelBatch
-        modelBatch = new ModelBatch();
+        modelBatch = new ModelBatch(); // inisialisasi ModelBatch buat model
         // buat setup generator perlin noisenya biar gunungnya random tiap kali playy
         perlin = new PerlinNoise();
 //        perlin.terrainHeight = 6f;
@@ -71,11 +71,72 @@ public class Main extends ApplicationAdapter {
         perlin.offsetX = MathUtils.random(0f, 999f); // geser seed random
         perlin.offsetZ = MathUtils.random(0f, 999f);
         assets = new AssetManager(); // setup asset manager, buat model model 3d
+//        assets.setLoader(Model.class, ".g3db", new G3dModelLoader(new UBJsonReader()));
         assets.load("models/pohon.g3dj", Model.class); // load file model pohon dari folder assets/models/
         assets.load("textures/batang_pohon.png", Texture.class);
         assets.load("textures/daun_pohon.png", Texture.class);
-        assets.finishLoading(); // ngeloading dulu biar simpel codingannya
-        treeModel = assets.get("models/pohon.g3dj", Model.class); // ambil model buat pohon
+        assets.finishLoading(); // ngeloading dulu biar simpel codinganny
+        // ambil model buat pohon, dllnya
+        treeModel = assets.get("models/pohon.g3dj", Model.class);
+        ModelBuilder modelBuilder = new ModelBuilder();
+        // bikin tekstur kabut procedural 128x128 biar lumayan tajem
+        Texture kabutTex = createProceduralFogTexture(128);
+        Material fogMat = new Material(
+            TextureAttribute.createDiffuse(kabutTex),
+            // atur blending biar transparan kyak asep beneran
+            new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+            IntAttribute.createCullFace(GL20.GL_NONE)
+        );
+        long attr = VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates;
+        modelBuilder.begin();
+        MeshPartBuilder meshBuilder = modelBuilder.part("fog_cluster", GL20.GL_TRIANGLES, attr, fogMat);
+        // loop buat numpuk beberapa plane biar jadi gumpalan yg bervolume
+        int planesCount = 1;
+        float baseSize = 10f; // ukuran dasar per lembarnya
+        for(int i = 0; i < planesCount; i++){
+            // cari sumbu putar acak
+            Vector3 axis = new Vector3(MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f)).nor();
+            float angle = MathUtils.random(0f, 360f); // sudut putar random
+            // geser dikit posisinya biar ga numpuk pas di tengah
+            Vector3 offset = new Vector3(MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f));
+            // tentuin 4 titik sudut plane secara manual, anggep awalnya madep depan
+            Vector3 p1 = new Vector3(-baseSize, -baseSize, 0); // kiri bawah
+            Vector3 p2 = new Vector3( baseSize, -baseSize, 0); // kanan bawah
+            Vector3 p3 = new Vector3( baseSize,  baseSize, 0); // kanan atas
+            Vector3 p4 = new Vector3(-baseSize,  baseSize, 0); // kiri atas
+            Vector3 normal = new Vector3(0, 0, 1); // arah normal
+            // terapin rotasi sama offset ke titik titik tadi
+            p1.rotate(axis, angle).add(offset);
+            p2.rotate(axis, angle).add(offset);
+            p3.rotate(axis, angle).add(offset);
+            p4.rotate(axis, angle).add(offset);
+            normal.rotate(axis, angle);
+            // masukin data titiknya ke mesh builder
+            meshBuilder.rect(
+                p1.x, p1.y, p1.z,
+                p2.x, p2.y, p2.z,
+                p3.x, p3.y, p3.z,
+                p4.x, p4.y, p4.z,
+                normal.x, normal.y, normal.z
+            );
+        }
+        fogModel = modelBuilder.end();
+        // bikin terrainnya grid 254x254, ukuran worldnya 320x320 meter
+        terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
+        // sebar objek kabutnya ke seluruh map
+        for(int i = 0; i < fogCount; i++){
+            ModelInstance fog = new ModelInstance(fogModel);
+            // random posisi X sama Z nyaa
+            float x = MathUtils.random(-160f, 160f);
+            float z = MathUtils.random(-160f, 160f);
+            float yT = terrain.getHeight(x, z); // ambil tinggi tanah di koordinat itu biar kabutnya napak
+            float y = MathUtils.random(yT, yT + 5f); // posisi y kabut random minimal sesuai tinggi tanah
+            fog.transform.setToTranslation(x, y + MathUtils.random(1f, 5f), z); // set posisi awalnya, y ditambah dikit biar ngambang
+            fog.transform.rotate(Vector3.Y, MathUtils.random(0f, 360f)); // rotasi acak biar ga keliatan seragam madepnya
+            float randomScale = MathUtils.random(1.5f, 5.0f); // random ukurannya biar variatif, ada yg gede ada yg kecil
+            fog.transform.scale(randomScale, randomScale * 0.6f, randomScale); // skala Y dipenyetin dikit biar kyak lapisan tipis
+            fogInstances.add(fog);
+        }
         // biar daunnya transparan & keliatan dari dua sisi
         for(Material mat : treeModel.materials){
             // cek material daun index 1
@@ -88,8 +149,6 @@ public class Main extends ApplicationAdapter {
             }
         }
 //        terrain = new Terrain(env, perlin, 160, 160, 80f, 80f);
-        // bikin terrainnya grid 254x254, ukuran worldnya 320x320 meter
-        terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
         terrain.generateTrees(treeModel, treeInstances, 600); // generate pohon pohonnya di terrain sebanyak 600 secara random
         // buat ngatur spawn playernya
         Vector3 startPos = new Vector3();
@@ -124,6 +183,72 @@ public class Main extends ApplicationAdapter {
         cam.viewportWidth = width;
         cam.viewportHeight = height;
         cam.update();
+    }
+
+    // buat gerakin kabutnya biar kayak kebawa angin
+    private void updateFog(float delta){
+        for(ModelInstance fog : fogInstances){
+            Vector3 pos = fog.transform.getTranslation(new Vector3()); // ambil posisi kabut sekarang
+            pos.x += fogSpeed * delta; // geser posisinya ke arah X positif
+            // cek kalo kabutnya udah kejauhan lewat batas map kanan
+            if(pos.x > 160f){
+                pos.x = -160f; // lempar balik ke ujung kiri
+                pos.z = MathUtils.random(-160f, 160f); // acak posisi Z baru
+                pos.y = terrain.getHeight(pos.x, pos.z) + MathUtils.random(1f, 5f); // sesuain tingginya sama tanah plus random dikit
+                // pas respawn acak ulang rotasi & ukurannya biar ga monoton bentuknya
+                fog.transform.idt();
+                fog.transform.setToTranslation(pos);
+                fog.transform.rotate(Vector3.Y, MathUtils.random(0f, 360f));
+                float s = MathUtils.random(1.5f, 5.0f);
+                fog.transform.scale(s, s * 0.6f, s);
+            }else fog.transform.setTranslation(pos); // pake setTranslation biar cuma geser posisi doang tanpa ngerusak rotasi atau ukuran yg udah kita set sebelumnya
+        }
+    }
+
+    // buat bikin tekstur kabut manual tanpa butuh file gambar\
+    private Texture createProceduralFogTexture(int size){
+        // bikin pixmap baru buat nampung pixelnya
+        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(size, size, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        PerlinNoise texNoise = new PerlinNoise();
+        // frekuensinya dikecilin biar gumpalan kabutnya lebih gede dan alus gak pecah pecahh
+        texNoise.frequencyX = 0.07f;
+        texNoise.frequencyZ = 0.07f;
+        texNoise.offsetX = MathUtils.random(0, 1000f);
+        texNoise.offsetZ = MathUtils.random(0, 1000f);
+        for(int x = 0; x < size; x++){
+            for(int y = 0; y < size; y++){
+                // biar gk ada garis kotak samar aneh di pinggirannyaa
+                if(x == 0 || x == size - 1 || y == 0 || y == size - 1){
+                    pixmap.setColor(0f, 0f, 0f, 0f);
+                    pixmap.drawPixel(x, y);
+                    continue;
+                }
+                float noiseVal = texNoise.getHeight(x, y);
+                // itung jarak dari titik tengah buat bikin masking bunder
+                float centerX = size / 2f;
+                float centerY = size / 2f;
+                float dx = x - centerX;
+                float dy = y - centerY;
+                float dist = (float)Math.sqrt(dx*dx + dy*dy);
+                float radius = size / 2f;
+                float ratio = dist / radius;
+                // rumus masking bunder pake pangkat biar gradasinya lembut ke pinggir
+                float sphereMask = 1.0f - ratio;
+                if(sphereMask < 0) sphereMask = 0;
+                sphereMask = (float)Math.pow(sphereMask, 3.5f);
+                float alpha = noiseVal * sphereMask;
+                // tebelin dikit bagian tengahnya biar lebih nampak
+                alpha = Math.min(alpha * 1.3f, 1.0f);
+                // kasih warna putih kebiruan dikit
+                pixmap.setColor(0.92f, 0.96f, 1f, alpha);
+                pixmap.drawPixel(x, y);
+            }
+        }
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose(); // buang pixmapnya kalo udh jadi tekstur
+        // set filter linear biar pixelnya ngeblur halus jadi gak keliatan kotak kotak pixelnya
+        texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        return texture;
     }
 
     // buat nengok nengok pake mouse
@@ -264,18 +389,26 @@ public class Main extends ApplicationAdapter {
         cam.update(); // update kamera cuman di sini, buat nyegah snap
         // bersihin layar
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.gl.glClearColor(0.78f, 0.80f, 0.82f, 1f); // warna kabut abu-abu keputihan
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
-        Gdx.gl.glEnable(GL20.GL_CULL_FACE); // optimasi biar ga render sisi belakang
+        Gdx.gl.glClearColor(0.08f, 0.1f, 0.14f, 1f); // set warna background jadi gelap kebiruan kyak suasana malem
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT); // bersihin buffer warna sama depth biar bersih buat frame baru
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); // idupin depth test biar objek yg harusnya di belakang gak nongol di depan
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE); // optimasi cull face biar sisi belakang model yg gak keliatan gak usah digambar
         renderContext.begin();
-        terrain.render(cam, renderContext); // render tanah
+        terrain.render(cam, renderContext); // render tanahnya duluan
         renderContext.end();
-        // ModelBatch buat ngegambar ModelInstance + Lighting
+        updateFog(delta); // update posisi kabut sebelum dirender
         modelBatch.begin(cam);
         for(ModelInstance tree : treeInstances){
             modelBatch.render(tree, env); // masukin ke env biar pohonnya kena cahaya matahari dan keliatan
         }
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE); // matiin culling dulu sebelum render kabut biar teksturnya keliatan dari depan belakang, jadi ga ilang pas kita liat dari sisi sebaliknya
+        Gdx.gl.glDepthMask(false); // matiin depth mask biar transparansinya alus, jadi ga numpuk aneh sama objek di belakangnya
+        for(ModelInstance fog : fogInstances){
+            modelBatch.render(fog); // render kabutnya ga pake lighting biar dia tetep keliatan putih samar kyak asep walau worldnya lagi gelap
+        }
+        // nyalain lagi depth mask sama cullingnya buat performa objek lain
+        Gdx.gl.glDepthMask(true);
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
         modelBatch.end();
     }
 
@@ -284,5 +417,6 @@ public class Main extends ApplicationAdapter {
         if(terrain != null) terrain.dispose();
         if(modelBatch != null) modelBatch.dispose(); // bersihin modelbatch
         if(assets != null) assets.dispose(); // bersihin assets model dan texturenya yg udh diload
+        if(fogModel != null) fogModel.dispose(); // bersihin model kabutnya
     }
 }

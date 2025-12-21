@@ -50,6 +50,10 @@ public class GameScreen implements Screen {
     private Model treeModel;
     private Array<ModelInstance> treeInstances = new Array<>();
 
+    // sistem dajjalnya
+    private Model dajjalModel; // buat nampung data model 3D nya dari file g3db
+    private DajjalEntity dajjal; // entity utamanya yg ngatur logika gerak sama animasinya
+
     // Kontrol Pemain
     private float yawDeg, pitchDeg;
     private float mouseSens = 0.14f;
@@ -88,54 +92,78 @@ public class GameScreen implements Screen {
         setup3DWorld();
         setupPauseInterface();
 
-        setPaused(false);
+//        setPaused(false);
+        Gdx.input.setCursorCatched(true);
+        Gdx.input.setInputProcessor(null);
     }
 
     private void setup3DWorld() {
+        // setup kamera perspektif biar kyak mata manusia ada jauh dekatnya
         cam = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        cam.near = 0.1f;
-        cam.far = 200f;
-
+        cam.near = 0.1f; // jarak pandang terdekat
+        cam.far = 200f; // jarak pandang terjauh, dipendekin jadi 100 buat efek kabut
+        // buat setup pencahayaan biar gak gelap gulita
         env = new Environment();
-        env.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.6f, 0.6f, 0.6f, 1f));
-        env.add(new DirectionalLight().set(1f, 1f, 1f, -0.6f, -1f, -0.3f));
-        env.set(new ColorAttribute(ColorAttribute.Fog, 0.08f, 0.1f, 0.14f, 1f));
-
+        env.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.6f, 0.6f, 0.6f, 1f)); // cahaya dasar
+        env.add(new DirectionalLight().set(1f, 1f, 1f, -0.6f, -1f, -0.3f)); // matahari
+        env.set(new ColorAttribute(ColorAttribute.Fog, 0.08f, 0.1f, 0.14f, 1f)); // tambahin atribut kabut ke env
         renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
-        modelBatch = new ModelBatch();
-
+        modelBatch = new ModelBatch(); // inisialisasi ModelBatch buat model
+        // buat setup generator perlin noisenya biar gunungnya random tiap kali playy
         perlin = new PerlinNoise();
-        perlin.amplitude = 80f;
+//        perlin.terrainHeight = 6f;
+        perlin.amplitude = 80f; // tinggi maksimal gunung
         perlin.frequencyX = 0.08f;
         perlin.frequencyZ = 0.08f;
-        perlin.offsetX = MathUtils.random(0f, 999f);
+        perlin.offsetX = MathUtils.random(0f, 999f); // geser seed random
         perlin.offsetZ = MathUtils.random(0f, 999f);
-
-        assets = new AssetManager();
+        assets = new AssetManager(); // setup asset manager, buat model model 3d
+//        assets.setLoader(Model.class, ".g3db", new G3dModelLoader(new UBJsonReader()));
+        // load file model dari folder assets/models/
         assets.load("models/pohon.g3dj", Model.class);
         assets.load("textures/batang_pohon.png", Texture.class);
         assets.load("textures/daun_pohon.png", Texture.class);
-        assets.finishLoading();
-
+        assets.load("models/dajjal.g3db", Model.class);
+        assets.load("models/majuj/majuj.g3db", Model.class);
+        assets.load("models/yajuj/yajuj.g3db", Model.class);
+        // load texture model
+        assets.load("models/dajjal_diffuse.png", Texture.class);
+        assets.load("models/dajjal_glow.png", Texture.class);
+        assets.load("models/majuj/majuj1.png", Texture.class);
+        assets.load("models/majuj/majuj2.png", Texture.class);
+        assets.load("models/yajuj/yajuj1.png", Texture.class);
+        assets.load("models/yajuj/yajuj2.png", Texture.class);
+        assets.load("models/yajuj/yajuj3.png", Texture.class);
+        assets.load("models/yajuj/yajuj4.png", Texture.class);
+        assets.finishLoading(); // ngeloading dulu biar simpel codinganny
+        // ambil model buat pohon, dllnya
         treeModel = assets.get("models/pohon.g3dj", Model.class);
-        createFogSystem();
-
+        dajjalModel = assets.get("models/yajuj/yajuj.g3db", Model.class);
         terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
-
+        createFogSystem(terrain);
+        // biar daunnya transparan & keliatan dari dua sisi
         for(Material mat : treeModel.materials){
+            // cek material daun index 1
             if(treeModel.materials.indexOf(mat, true) == 1){
-                mat.set(new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                mat.set(
+                    new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
                     FloatAttribute.createAlphaTest(0.25f),
-                    IntAttribute.createCullFace(GL20.GL_NONE));
+                    IntAttribute.createCullFace(GL20.GL_NONE)
+                );
             }
         }
-        terrain.generateTrees(treeModel, treeInstances, 600);
-
+        terrain.generateTrees(treeModel, treeInstances, 600); // generate pohon pohonnya di terrain sebanyak 600 secara random
+        // buat ngatur spawn playernya
         Vector3 startPos = new Vector3();
-        terrain.getRoadStartPos(startPos);
-        cam.position.set(startPos.x + 5.0f, startPos.y + eyeHeight, startPos.z + 5.0f);
-
+        terrain.getRoadStartPos(startPos); // minta koordinat start, biar di awal jalan spiral startnya
+        cam.position.set(startPos.x + 5.0f, startPos.y + eyeHeight, startPos.z + 5.0f); // buat set posisi kamera
+        float spawnX = startPos.x + 15.0f;
+        float spawnZ = startPos.z + 15.0f;
+        float spawnY = terrain.getHeight(spawnX, spawnZ); // tinggi dari tinggi terrain di titik  x z itu
+        // manggil class DajjalEntity
+        dajjal = new DajjalEntity(dajjalModel, spawnX, spawnY, spawnZ);
         Vector3 lookTarget = new Vector3();
+        // Panggil methodnya aja, jangan itung manual di sini!
         terrain.getRoadLookAtPos(lookTarget);
         cam.direction.set(lookTarget.sub(cam.position)).nor();
         cam.up.set(Vector3.Y);
@@ -292,6 +320,8 @@ public class GameScreen implements Screen {
             clampAndStickToTerrain(delta);
             updateFog(delta);
             missionTimer += delta;
+            // kalo dajjalnya udh keload, suruh dia update logika, animasi, sama ngejar posisi kita
+            if(dajjal != null) dajjal.update(delta, cam.position, terrain);
         } else {
             // Update data UI saat pause aktif
             updateUI();
@@ -318,6 +348,10 @@ public class GameScreen implements Screen {
         for(ModelInstance fog : fogInstances) modelBatch.render(fog);
         Gdx.gl.glDepthMask(true);
         Gdx.gl.glEnable(GL20.GL_CULL_FACE);
+        if(dajjal != null){
+            // render badanDajjal yang ada di dalem objek dajjal
+            modelBatch.render(dajjal.badanDajjal, env);
+        }
         modelBatch.end();
 
         stage.act(delta);
@@ -408,31 +442,64 @@ public class GameScreen implements Screen {
         }else isGrounded = false;
     }
 
-    private void createFogSystem() {
+    private void createFogSystem(Terrain terrain) {
         ModelBuilder modelBuilder = new ModelBuilder();
+        // bikin tekstur kabut procedural 128x128 biar lumayan tajem
         Texture kabutTex = createProceduralFogTexture(128);
-        Material fogMat = new Material(TextureAttribute.createDiffuse(kabutTex),
+        Material fogMat = new Material(
+            TextureAttribute.createDiffuse(kabutTex),
+            // atur blending biar transparan kyak asep beneran
             new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-            IntAttribute.createCullFace(GL20.GL_NONE));
-
+            IntAttribute.createCullFace(GL20.GL_NONE)
+        );
         long attr = VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates;
         modelBuilder.begin();
         MeshPartBuilder meshBuilder = modelBuilder.part("fog_cluster", GL20.GL_TRIANGLES, attr, fogMat);
-
-        Vector3 p1 = new Vector3(-10, -10, 0);
-        Vector3 p2 = new Vector3( 10, -10, 0);
-        Vector3 p3 = new Vector3( 10,  10, 0);
-        Vector3 p4 = new Vector3(-10,  10, 0);
-        Vector3 normal = new Vector3(0,0,1);
-        meshBuilder.rect(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, p4.x, p4.y, p4.z, normal.x, normal.y, normal.z);
+        // loop buat numpuk beberapa plane biar jadi gumpalan yg bervolume
+        int planesCount = 1;
+        float baseSize = 10f; // ukuran dasar per lembarnya
+        for(int i = 0; i < planesCount; i++){
+            // cari sumbu putar acak
+            Vector3 axis = new Vector3(MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f)).nor();
+            float angle = MathUtils.random(0f, 360f); // sudut putar random
+            // geser dikit posisinya biar ga numpuk pas di tengah
+            Vector3 offset = new Vector3(MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f));
+            // tentuin 4 titik sudut plane secara manual, anggep awalnya madep depan
+            Vector3 p1 = new Vector3(-baseSize, -baseSize, 0); // kiri bawah
+            Vector3 p2 = new Vector3( baseSize, -baseSize, 0); // kanan bawah
+            Vector3 p3 = new Vector3( baseSize,  baseSize, 0); // kanan atas
+            Vector3 p4 = new Vector3(-baseSize,  baseSize, 0); // kiri atas
+            Vector3 normal = new Vector3(0, 0, 1); // arah normal
+            // terapin rotasi sama offset ke titik titik tadi
+            p1.rotate(axis, angle).add(offset);
+            p2.rotate(axis, angle).add(offset);
+            p3.rotate(axis, angle).add(offset);
+            p4.rotate(axis, angle).add(offset);
+            normal.rotate(axis, angle);
+            // masukin data titiknya ke mesh builder
+            meshBuilder.rect(
+                p1.x, p1.y, p1.z,
+                p2.x, p2.y, p2.z,
+                p3.x, p3.y, p3.z,
+                p4.x, p4.y, p4.z,
+                normal.x, normal.y, normal.z
+            );
+        }
         fogModel = modelBuilder.end();
-
+        // bikin terrainnya grid 254x254, ukuran worldnya 320x320 meter
+        terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
+        // sebar objek kabutnya ke seluruh map
         for(int i = 0; i < fogCount; i++){
             ModelInstance fog = new ModelInstance(fogModel);
+            // random posisi X sama Z nyaa
             float x = MathUtils.random(-160f, 160f);
             float z = MathUtils.random(-160f, 160f);
-            float y = MathUtils.random(0, 10);
-            fog.transform.setToTranslation(x, y, z);
+            float yT = terrain.getHeight(x, z); // ambil tinggi tanah di koordinat itu biar kabutnya napak
+            float y = MathUtils.random(yT, yT + 5f); // posisi y kabut random minimal sesuai tinggi tanah
+            fog.transform.setToTranslation(x, y + MathUtils.random(1f, 5f), z); // set posisi awalnya, y ditambah dikit biar ngambang
+            fog.transform.rotate(Vector3.Y, MathUtils.random(0f, 360f)); // rotasi acak biar ga keliatan seragam madepnya
+            float randomScale = MathUtils.random(1.5f, 5.0f); // random ukurannya biar variatif, ada yg gede ada yg kecil
+            fog.transform.scale(randomScale, randomScale * 0.6f, randomScale); // skala Y dipenyetin dikit biar kyak lapisan tipis
             fogInstances.add(fog);
         }
     }

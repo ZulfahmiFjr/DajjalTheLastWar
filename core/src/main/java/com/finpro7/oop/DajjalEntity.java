@@ -134,7 +134,8 @@ public class DajjalEntity {
         private void lakukanSerangan(){
             lagiNyerang = true;
             timerSerangan = 0f;
-            // biar auto aim, pas detik ini mau mukul, itung dlu sudut ke player skarang, trus simpen di sudutKunci, jadi mau badannya miring tetep maksa nengok player dlu baru nonjokfloat dx = posisiTarget.x - posisiSaatIni.x;
+            // biar auto aim, pas detik ini mau mukul, itung dlu sudut ke player skarang, trus simpen di sudutKunci, jadi mau badannya miring tetep maksa nengok player dlu baru nonjok
+            float dx = posisiTarget.x - posisiSaatIni.x;
             float dz = posisiTarget.z - posisiSaatIni.z;
             sudutKunci = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
             pengaturAnimasi.animate(ANIM_PUKUL, 1, 1.5f, new AnimationListener() {

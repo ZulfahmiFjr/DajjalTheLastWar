@@ -15,11 +15,16 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.finpro7.oop.world.weapon.Firearm;
+import com.finpro7.oop.world.weapon.WeaponMod;
 
 public class Main extends Game {
 
     public static Skin skin;
     public AssetManager assets;
+
+    public static com.finpro7.oop.world.weapon.AkRifle.Template autoRifleTemplate;
+    public static com.badlogic.gdx.graphics.g3d.Model weaponsModel;
 
     // Palet warna tema game
     private final Color COLOR_GOLD = new Color(1f, 0.84f, 0.0f, 1f);
@@ -27,8 +32,18 @@ public class Main extends Game {
 
     @Override
     public void create() {
+        assets = new AssetManager();
         createStyle();
         loadAssets();
+        // Ambil modelnya dulu dari assets
+        weaponsModel = assets.get("models/weapons.g3db", Model.class);
+
+        autoRifleTemplate = new com.finpro7.oop.world.weapon.AkRifle.Template(
+            new com.badlogic.gdx.graphics.g3d.ModelInstance(weaponsModel),
+            new com.badlogic.gdx.math.Vector3(0, 0, 0),
+            null,
+            null
+        );
         // Langsung masuk ke LoginScreen saat aplikasi dibuka
         this.setScreen(new LoginScreen(this));
     }
@@ -143,6 +158,9 @@ public class Main extends Game {
         assets.load("models/yajuj/yajuj2.png", Texture.class);
         assets.load("models/yajuj/yajuj3.png", Texture.class);
         assets.load("models/yajuj/yajuj4.png", Texture.class);
+
+        assets.load("models/weapons.g3db", Model.class);
+        assets.load("textures/crosshair.png", Texture.class);
 
         // Finish Loading (Blocking sampai semua ke-load)
         assets.finishLoading();

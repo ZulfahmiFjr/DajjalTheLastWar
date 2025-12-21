@@ -31,7 +31,7 @@ public class LoginScreen implements Screen {
     private TextField passwordField;
     private Label statusLabel;
 
-    private final String BASE_URL = "http://localhost:8080/auth";
+    private final String BASE_URL = "http://localhost:8081/auth";
 
     private PerspectiveCamera cam;
     private Environment env;

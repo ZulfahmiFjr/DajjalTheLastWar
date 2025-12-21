@@ -30,6 +30,10 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.finpro7.oop.world.Terrain;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.collision.Ray;
+import com.finpro7.oop.world.weapon.Firearm;
 
 public class GameScreen implements Screen {
 
@@ -41,6 +45,18 @@ public class GameScreen implements Screen {
     private Environment env;
     private RenderContext renderContext;
     private ModelBatch modelBatch;
+
+    // FPS WEAPON SYSTEM
+    private SpriteBatch uiBatch;
+    private Texture crosshairTex;
+    private ShapeRenderer shapeRenderer;
+    private Firearm playerWeapon;
+    private Array<Firearm> inventory = new Array<>();
+
+    // bullet tracer
+    private Vector3 bulletOrigin = new Vector3();
+    private Vector3 bulletDest = new Vector3();
+    private float bulletTracerTimer = 0f;
 
     // Asset dan World
     private Terrain terrain;
@@ -90,9 +106,17 @@ public class GameScreen implements Screen {
         setup3DWorld();
         setupPauseInterface();
 
+        uiBatch = new SpriteBatch();
+        shapeRenderer = new ShapeRenderer();
+        crosshairTex = game.assets.get("textures/crosshair.png", Texture.class);
+
 //        setPaused(false);
         Gdx.input.setCursorCatched(true);
         Gdx.input.setInputProcessor(null);
+
+        inventory.add(com.finpro7.oop.world.weapon.AkRifle.generateDefault());
+        inventory.add(com.finpro7.oop.world.weapon.Pistol.generateDefault());
+        playerWeapon = inventory.get(0); // Set default ke AK
     }
 
     private void setup3DWorld() {
@@ -299,6 +323,14 @@ public class GameScreen implements Screen {
             missionTimer += delta;
             // kalo dajjalnya udh keload, suruh dia update logika, animasi, sama ngejar posisi kita
             if(dajjal != null) dajjal.update(delta, cam.position, terrain);
+            if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) playerWeapon = inventory.get(0);
+            if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) playerWeapon = inventory.get(1);
+            if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) { // Shooting input
+                shoot();
+            }
+            if (bulletTracerTimer > 0) { // update bullet tracer timer
+                bulletTracerTimer -= delta;
+            }
         } else {
             // Update data UI saat pause aktif
             updateUI();
@@ -319,6 +351,11 @@ public class GameScreen implements Screen {
         modelBatch.begin(cam);
         for(ModelInstance tree : treeInstances) modelBatch.render(tree, env);
         if(dajjal != null) modelBatch.render(dajjal.badanDajjal, env);
+
+        if (playerWeapon != null && playerWeapon.viewModel != null) {
+            playerWeapon.setView(cam); // Biar nempel di kamera
+            modelBatch.render(playerWeapon.viewModel); // Tidak pakai env biar tidak gelap/kena fog
+        }
         // suruh GPU selesaikan gambar pohon & dajjal dulu
         modelBatch.flush();
 //        Gdx.gl.glDisable(GL20.GL_CULL_FACE);
@@ -328,7 +365,26 @@ public class GameScreen implements Screen {
 //        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
 
         modelBatch.end();
+        if (bulletTracerTimer > 0) {
+            shapeRenderer.setProjectionMatrix(cam.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.line(
+                bulletOrigin.x, bulletOrigin.y, bulletOrigin.z,
+                bulletDest.x,   bulletDest.y,   bulletDest.z,
+                Color.WHITE,
+                Color.YELLOW
+            );
+            shapeRenderer.end();
+        }
         stage.act(delta);
+        uiBatch.begin();
+        uiBatch.draw(
+            crosshairTex,
+            Gdx.graphics.getWidth() / 2f - 16,
+            Gdx.graphics.getHeight() / 2f - 16,
+            32, 32
+        );
+        uiBatch.end();
         stage.draw();
     }
 
@@ -539,5 +595,40 @@ public class GameScreen implements Screen {
         if(modelBatch != null) modelBatch.dispose();
         if(fogModel != null) fogModel.dispose();
         if(stage != null) stage.dispose();
+        if(uiBatch != null) uiBatch.dispose();
+        if(shapeRenderer != null) shapeRenderer.dispose();
     }
+
+    private void shoot() {
+        if (playerWeapon == null) return;
+        playerWeapon.shoot(); // Jalankan animasi rekoil
+
+        // ngambil tujuan (tengah layar)
+        Ray ray = cam.getPickRay(Gdx.graphics.getWidth() / 2f, Gdx.graphics.getHeight() / 2f);
+        bulletDest.set(ray.direction).scl(100f).add(ray.origin);
+
+        // Hitung titik keluar peluru (Muzzle)
+        Vector3 camRight = new Vector3(cam.direction).crs(cam.up).nor();
+        Vector3 camDown = new Vector3(camRight).crs(cam.direction).nor().scl(-1f);
+        bulletOrigin.set(cam.position);
+
+        float fwd, side, down;
+        if (playerWeapon instanceof com.finpro7.oop.world.weapon.AkRifle) {
+            // Untuk ak
+            fwd = 2.15f;  // Jarak peluru ke depan
+            side = 0.52f; // Geser kiri(-) atau kanan(+)
+            down = 0.3f; // Geser atas(-) atau bawah(+)
+        } else {
+            // Untuk pistol
+            fwd = 1.35f;
+            side = 0.52f;
+            down = 0.38f;
+        }
+
+        bulletOrigin.add(camRight.scl(side));
+        bulletOrigin.add(camDown.scl(down));
+        bulletOrigin.add(new Vector3(cam.direction).scl(fwd));
+        bulletTracerTimer = 0.1f;
+    }
+
 }

@@ -123,7 +123,9 @@ public class MenuScreen implements Screen {
         btnStart.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.setScreen(new GameScreen(game));
+                if (game.assets.update()) {
+                    game.setScreen(new GameScreen(game));
+                }
             }
         });
 

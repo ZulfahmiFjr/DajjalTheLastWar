@@ -119,6 +119,7 @@ public class GameScreen implements Screen {
     private Label notificationLabel; // Notifikasi besar
     private Table hudTable;
     private float warningCooldown = 0f;
+    private Label ammoLabel; // Label buat nampilin peluru
     // hit maker
     private float hitMarkerTimer = 0f; // timer buat nampilin tanda X
     private Texture hitMarkerTex; // gambar tanda X (pake crosshair aja diwarnain merah nanti)
@@ -225,11 +226,14 @@ public class GameScreen implements Screen {
         stageLabel.setFontScale(1.4f);
         stageLabel.setColor(Color.GOLD);
 
-        enemyCountLabel = new Label("HOSTILES LEFT: 0", Main.skin, "subtitle");
+        enemyCountLabel = new Label("ENEMIES: 0", Main.skin, "subtitle");
         enemyCountLabel.setColor(Color.WHITE);
+        ammoLabel = new Label("AMMO: -- / --", Main.skin, "subtitle");
+        ammoLabel.setColor(Color.LIGHT_GRAY); // Warnanya abu-abu biar beda dikit
 
         hudTable.add(stageLabel).left().row();
-        hudTable.add(enemyCountLabel).left().padTop(5);
+        hudTable.add(enemyCountLabel).left().padTop(5).row();
+        hudTable.add(ammoLabel).left().padTop(5);
         stage.addActor(hudTable);
 
         notificationLabel = new Label("", Main.skin, "title");
@@ -393,6 +397,20 @@ public class GameScreen implements Screen {
             enemyCountLabel.setText("ENEMIES: " + sisaGlobal + " / " + totalJatahStage);
             if(sisaGlobal <= 3) enemyCountLabel.setColor(Color.RED);
             else enemyCountLabel.setColor(Color.WHITE);
+            if (playerWeapon != null) {
+                // Format: AMMO: [Peluru di Magazine] / [Sisa di Tas]
+                String ammoText = "AMMO: " + playerWeapon.ammoInClip + " / " + playerWeapon.totalAmmo;
+                ammoLabel.setText(ammoText);
+                // Fitur Pemanis: Kalau peluru di mag abis (0), warnanya jadi Merah biar panik dikit
+                if (playerWeapon.ammoInClip == 0) {
+                    ammoLabel.setColor(Color.RED);
+                } else if (playerWeapon.isReloading) {
+                    ammoLabel.setText("RELOADING..."); // Biar keliatan lagi reload
+                    ammoLabel.setColor(Color.YELLOW);
+                } else {
+                    ammoLabel.setColor(Color.LIGHT_GRAY);
+                }
+            }
 
             for(int i = activeEnemies.size - 1; i >= 0; i--){
                 BaseEnemy enemy = activeEnemies.get(i);
@@ -436,7 +454,17 @@ public class GameScreen implements Screen {
             // WEAPON INPUT (Punya Kamu)
             if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) playerWeapon = inventory.get(0);
             if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) playerWeapon = inventory.get(1);
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                if (playerWeapon != null) {
+                    playerWeapon.reload();
+                }
+            }
             if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) shoot();
+            if (playerWeapon != null) {
+                // Ini "baterai"-nya. Biar waktu reload-nya jalan.
+                playerWeapon.update(delta);
+            }
+
 
             if (bulletTracerTimer > 0) bulletTracerTimer -= delta;
 
@@ -715,6 +743,18 @@ public class GameScreen implements Screen {
     // --- LOGIKA SHOOTING & DAMAGE ---
     private void shoot() {
         if (playerWeapon == null) return;
+        if (playerWeapon.isReloading) {
+            System.out.println("Tahan bos, lagi isi peluru!");
+            return;
+        }
+        // Kalau peluru di magazine abis
+        if (playerWeapon.ammoInClip <= 0) {
+            System.out.println("Klik! Peluru abis. Tekan R buat reload!");
+            // Opsional: Play sound "klik" kosong disini
+            return;
+        }
+        // Kurangi peluru (Penting!)
+//        playerWeapon.ammoInClip--;
         playerWeapon.shoot();
         cam.update();
 

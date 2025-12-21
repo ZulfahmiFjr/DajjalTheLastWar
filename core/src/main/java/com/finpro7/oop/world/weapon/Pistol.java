@@ -1,12 +1,11 @@
 package com.finpro7.oop.world.weapon;
 
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.finpro7.oop.Main;
 
 public class Pistol extends Firearm {
-    // buat nampung nama-nama mesh/bagian model yang mau digabungin jadi satu pistol
+    // buat nyimpen bagian-bagian model pistol
     Array<String> meshNames = new Array<>(16);
 
     public Pistol(Object player) {
@@ -19,10 +18,11 @@ public class Pistol extends Firearm {
         this.scaleZ = 1.0f;
         this.aimSightY = -0.5f;
         this.aimSightZ = -0.7f;
-        this.ammoInClip = 7; // peluru dikit khas pistol
-        this.maxAmmoInClip = ammoInClip;
+        this.ammoInClip = 10; // peluru dikit khas pistol
+        this.maxAmmoInClip = 10;
+        this.totalAmmo = 250;
         this.reloadSpeed = 2.0f; // reload agak santai
-        this.damage = 10f; // damage per peluru lebih gede dari rifle buat balancing
+        this.damage = 6f; // damage per peluru lebih gede dari rifle buat balancing
 
         // set efek visual pas nembak (animasi rekoil)
         this.recoveryTranslateZ = 0.125f; // mundurin pistol dikit pas nembak
@@ -31,7 +31,6 @@ public class Pistol extends Firearm {
         this.recoverySpeed = 4.0f; // kecepatan balik ke posisi normal
         this.knockback = 2f; // dorongan ke musuh
         this.meshNames.clear();
-        // ambil ID "pistol" dari file weapons.g3db
         this.meshNames.add("pistol");
         this.mods.add("Pistol");
     }
@@ -52,15 +51,11 @@ public class Pistol extends Firearm {
         return pistol;
     }
 
-    // bagian buat ngerakit model 3D berdasarkan mesh yang kepilih
     public void updateModel() {
         if (Main.weaponsModel != null) {
-            // ini bagian sakti: bikin model cuma dari potongan-potongan ID yang ada di meshNames
             viewModel = new ModelInstance(Main.weaponsModel, meshNames);
         }
     }
-
-    // --- LIST MODIFIKASI KHAS PISTOL ---
 
     // modifikasi bagian magazine
     static WeaponMod[] magMods = {

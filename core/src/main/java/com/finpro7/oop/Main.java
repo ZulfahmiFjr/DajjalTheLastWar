@@ -8,6 +8,8 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
@@ -39,10 +41,8 @@ public class Main extends Game {
         weaponsModel = assets.get("models/weapons.g3db", Model.class);
 
         autoRifleTemplate = new com.finpro7.oop.world.weapon.AkRifle.Template(
-            new com.badlogic.gdx.graphics.g3d.ModelInstance(weaponsModel),
-            new com.badlogic.gdx.math.Vector3(0, 0, 0),
-            null,
-            null
+            new ModelInstance(weaponsModel),
+            new Vector3(0, 0, 0)
         );
         // Langsung masuk ke LoginScreen saat aplikasi dibuka
         this.setScreen(new LoginScreen(this));
@@ -136,7 +136,6 @@ public class Main extends Game {
     }
 
     private void loadAssets(){
-        assets = new AssetManager();
 
         // --- LOAD MODELS ---
         assets.load("models/pohon.g3dj", Model.class);

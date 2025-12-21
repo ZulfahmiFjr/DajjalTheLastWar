@@ -319,6 +319,7 @@ public class GameScreen implements Screen {
             updateMouseLook();
             updateMovement(delta);
             clampAndStickToTerrain(delta);
+            cam.update();
             updateFog(delta);
             missionTimer += delta;
             // kalo dajjalnya udh keload, suruh dia update logika, animasi, sama ngejar posisi kita
@@ -602,14 +603,15 @@ public class GameScreen implements Screen {
     private void shoot() {
         if (playerWeapon == null) return;
         playerWeapon.shoot(); // Jalankan animasi rekoil
+        cam.update();
 
         // ngambil tujuan (tengah layar)
         Ray ray = cam.getPickRay(Gdx.graphics.getWidth() / 2f, Gdx.graphics.getHeight() / 2f);
         bulletDest.set(ray.direction).scl(100f).add(ray.origin);
 
         // Hitung titik keluar peluru (Muzzle)
-        Vector3 camRight = new Vector3(cam.direction).crs(cam.up).nor();
-        Vector3 camDown = new Vector3(camRight).crs(cam.direction).nor().scl(-1f);
+        Vector3 camRight = cam.direction.cpy().crs(cam.up).nor();
+        Vector3 camDown = camRight.cpy().crs(cam.direction).nor().scl(-1f);
         bulletOrigin.set(cam.position);
 
         float fwd, side, down;
@@ -628,7 +630,7 @@ public class GameScreen implements Screen {
         bulletOrigin.add(camRight.scl(side));
         bulletOrigin.add(camDown.scl(down));
         bulletOrigin.add(new Vector3(cam.direction).scl(fwd));
-        bulletTracerTimer = 0.1f;
+        bulletTracerTimer = 0.03f;
     }
 
 }

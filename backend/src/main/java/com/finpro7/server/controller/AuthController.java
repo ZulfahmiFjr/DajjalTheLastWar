@@ -3,6 +3,8 @@ package com.finpro7.server.controller;
 import com.finpro7.server.model.User;
 import com.finpro7.server.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,29 +22,31 @@ public class AuthController {
 
     // REGISTER
     @PostMapping("/register")
-    public String register(@RequestBody User user) {
-        // Cek username ada gak
+    public ResponseEntity<String> register(@RequestBody User user) {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            return "Username sudah dipakai!";
+            // Return 400 Bad Request kalau username ada
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username sudah dipakai!");
         }
-        // Encrypt password sebelum simpan
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRole("USER");
         userRepository.save(user);
-        return "Register Berhasil!";
+
+        // Return 200 OK
+        return ResponseEntity.ok("Register Berhasil!");
     }
 
-    // LOGIN MANUAL (Sederhana)
+    // LOGIN
     @PostMapping("/login")
-    public String login(@RequestBody User user) {
+    public ResponseEntity<String> login(@RequestBody User user) {
         Optional<User> dbUser = userRepository.findByUsername(user.getUsername());
 
         if (dbUser.isPresent()) {
-            // Cek password raw vs password hash di DB
             if (passwordEncoder.matches(user.getPassword(), dbUser.get().getPassword())) {
-                return "Login Sukses! Role kamu: " + dbUser.get().getRole();
+                // PASSWORD BENAR -> Return 200 OK
+                return ResponseEntity.ok("Login Sukses! Role kamu: " + dbUser.get().getRole());
             }
         }
-        return "Username atau Password salah!";
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Username atau Password salah!");
     }
 }

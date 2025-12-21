@@ -417,4 +417,15 @@ public class Terrain implements Disposable {
         if(shader != null) shader.dispose();
         texture.dispose();
     }
+
+    public boolean getIntersection(com.badlogic.gdx.math.collision.Ray ray, Vector3 out) {
+        // Logika sederhana: anggap peluru mengenai permukaan tanah datar (Y=0)
+        // atau tinggi rata-rata tanah jika kamu tidak ingin menghitung ribuan segitiga.
+        float distance = -ray.origin.y / ray.direction.y;
+        if (distance > 0) {
+            out.set(ray.direction).scl(distance).add(ray.origin);
+            return true;
+        }
+        return false;
+    }
 }

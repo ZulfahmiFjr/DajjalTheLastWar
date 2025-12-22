@@ -33,6 +33,7 @@ public abstract class BaseEnemy {
     // urusan kecepatan
     public float walkSpeed; // pas lagi jalan santai
     public float runSpeed; // pas lagi lari ngebut
+    protected boolean manualTransform = false;
 
     // jarak pukul yang bisa berubah ubah
     public float attackRange;
@@ -70,7 +71,7 @@ public abstract class BaseEnemy {
         if(currentState != null) currentState.update(delta, playerPos, terrain, trees, allEnemies, playerStats);
         // kalo mati kita serahin urusan posisi/rotasi ke DeathState sepenuhnya.
         // BaseEnemy cuma ngurus transform kalo dia masih HIDUP.
-        if (!isDead) {
+        if (!isDead && !manualTransform) {
             if(!isRising) position.y = terrain.getHeight(position.x, position.z);
             modelInstance.transform.setToTranslation(position);
             rotateTowardsPlayer();

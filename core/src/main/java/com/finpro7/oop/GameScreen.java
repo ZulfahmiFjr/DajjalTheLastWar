@@ -69,8 +69,14 @@ public class GameScreen implements Screen {
     private RenderContext renderContext;
     private ModelBatch modelBatch;
 
-    private Array<Coin> activeCoins = new Array<>(); // List koin
-    private Model coinModel; // Cetakan modelnya
+//    private Array<Coin> activeCoins = new Array<>(); // List koin
+//    private Model coinModel; // Cetakan modelnya
+
+    private Array<ItemPickup> activeItems = new Array<>();
+    // Model-model drop item
+    private Model coinModel;
+    private Model healthModel; // Baru
+    private Model ammoModel;   // Baru
     private int score = 0; // Skor player
     private boolean isGameOver = false;
     private Table gameOverTable;
@@ -301,6 +307,16 @@ public class GameScreen implements Screen {
         coinModel = mb.createCylinder(1f, 0.1f, 1f, 20,
             new Material(ColorAttribute.createDiffuse(Color.GOLD)),
             VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal);
+        // 2. Model Health Pack (Kotak Hijau Plus)
+        healthModel = game.assets.get("models/medkit.g3db", Model.class);
+//        healthModel = mb.createBox(1f, 1f, 1f,
+//            new Material(ColorAttribute.createDiffuse(Color.GREEN)),
+//            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal);
+// 3. Model Ammo Box (Kotak Biru/Abu)
+        ammoModel = game.assets.get("models/ammo.g3db", Model.class);
+//        ammoModel = mb.createBox(1f, 1f, 1f,
+//            new Material(ColorAttribute.createDiffuse(Color.CYAN)),
+//            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal);
 
         treeModel = game.assets.get("models/pohon.g3dj", Model.class);
 //        dajjalModel = game.assets.get("models/dajjal.g3db", Model.class); // Pastikan ini benar (bukan yajuj)
@@ -720,10 +736,25 @@ public class GameScreen implements Screen {
                     waveManager.reportEnemyDeath();
                     enemy.countedAsDead = true;
 
-                    // Jadi pas nyawanya abis, koin langsung njeblug keluar, gak nunggu mayat ilang.
-                    // Tinggi spawnnya (y) kita ambil dari posisi musuh + 1.0f biar gak kelelep tanah
-                    Coin c = new Coin(coinModel, enemy.position.x, enemy.position.y + 1.0f, enemy.position.z);
-                    activeCoins.add(c);
+                    // --- LOGIC DROP ITEM ---
+                    float dropX = enemy.position.x;
+                    float dropZ = enemy.position.z;
+                    float dropY = enemy.position.y + 1.0f;
+
+                    // 1. PASTI DROP KOIN (100%)
+                    activeItems.add(new ItemPickup(coinModel, dropX, dropY, dropZ, ItemPickup.Type.COIN, 10));
+
+                    // 2. DROP HEALTH (30% Chance)
+                    // Geser dikit posisinya biar gak numpuk sama koin
+                    if (MathUtils.randomBoolean(0.3f)) {
+                        activeItems.add(new ItemPickup(healthModel, dropX + 0.5f, dropY, dropZ + 0.5f, ItemPickup.Type.HEALTH, 20));
+                    }
+
+                    // 3. DROP AMMO (40% Chance)
+                    // Geser ke arah lain
+                    if (MathUtils.randomBoolean(0.4f)) {
+                        activeItems.add(new ItemPickup(ammoModel, dropX - 0.5f, dropY, dropZ - 0.5f, ItemPickup.Type.AMMO, 30));
+                    }
 
                 }
 
@@ -735,17 +766,44 @@ public class GameScreen implements Screen {
                 }
             }
 
-            for (int i = activeCoins.size - 1; i >= 0; i--) {
-                Coin c = activeCoins.get(i);
-                c.update(delta); // Muterin koin
+            // Loop Item Pickup (Koin, Darah, Ammo)
+            for (int i = activeItems.size - 1; i >= 0; i--) {
+                ItemPickup item = activeItems.get(i);
+                item.update(delta); // Muterin item
 
-                // Cek Jarak Player ke Koin (1.5 meter)
-                if (cam.position.dst(c.position) < 1.5f) {
-                    activeCoins.removeIndex(i); // Hapus koin
-                    this.score += 10; // Nambah skor
-                    coinLabel.setText("COINS: " + score);
-                    // kirim koin ke database
-                    saveCoinToServer(10);
+                // Cek Jarak Player ke Item (1.5 meter)
+                if (cam.position.dst(item.position) < 1.5f) {
+
+                    // --- EFEK PAS DIAMBIL ---
+                    switch (item.type) {
+                        case COIN:
+                            this.score += item.value;
+                            coinLabel.setText("COINS: " + score);
+                            saveCoinToServer(item.value);
+                            System.out.println("Dapet Duit: " + item.value);
+                            break;
+
+                        case HEALTH:
+                            // Nambah darah player (jangan lebih dari max)
+                            playerStats.health += item.value;
+                            if(playerStats.health > playerStats.maxHealth) {
+                                playerStats.health = playerStats.maxHealth;
+                            }
+                            // Update tampilan UI darah biar gak nunggu kena pukul dulu
+                            // (Biasanya otomatis keupdate di shapeRenderer sih)
+                            System.out.println("Dapet Darah: " + item.value);
+                            break;
+
+                        case AMMO:
+                            if (playerWeapon != null) {
+                                playerWeapon.totalAmmo += item.value;
+                                System.out.println("Dapet Peluru: " + item.value);
+                            }
+                            break;
+                    }
+
+                    // Hapus item dari dunia
+                    activeItems.removeIndex(i);
                 }
             }
 
@@ -830,8 +888,8 @@ public class GameScreen implements Screen {
 
         // RENDER MUSUH (Yajuj Majuj)
         for (BaseEnemy enemy : activeEnemies) modelBatch.render(enemy.modelInstance, env);
-        for (Coin c : activeCoins) {
-            modelBatch.render(c.instance, env);
+        for (ItemPickup item : activeItems) {
+            modelBatch.render(item.instance, env);
         }
 
         // Render Senjata (ViewModel)
@@ -1387,6 +1445,8 @@ public class GameScreen implements Screen {
         if (uiBatch != null) uiBatch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (coinModel != null) coinModel.dispose();
+        if (healthModel != null) healthModel.dispose();
+        if (ammoModel != null) ammoModel.dispose();
     }
 
     // Class helper buat nyimpen tanda hit yang lagi melayang

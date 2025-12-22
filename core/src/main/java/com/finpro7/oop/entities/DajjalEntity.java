@@ -18,6 +18,7 @@ public class DajjalEntity extends BaseEnemy {
 
     public DajjalEntity(Model model, float x, float y, float z) {
         super();
+        this.manualTransform = true;
         this.modelInstance = new ModelInstance(model);
         this.modelInstance.transform.setToTranslation(x, y, z);
         this.animController = new AnimationController(this.modelInstance);
@@ -60,6 +61,14 @@ public class DajjalEntity extends BaseEnemy {
             if (lagiNyerang) {
                 // Kalo lagi nyerang, paksa madep ke sudut kunci, jangan tolah toleh ke player
                 yawYangDipake = sudutKunci;
+            }else {
+                // Kalo gak nyerang, kita itung rotasi ke player manual di sini
+                // (Persis kyak rotateTowardsPlayer tapi versi Dajjal)
+                float dx = playerPos.x - position.x;
+                float dz = playerPos.z - position.z;
+                yawYangDipake = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
+                // Update currentYaw biar sinkron kalo perlu
+                this.currentYaw = yawYangDipake;
             }
 
             modelInstance.transform.idt(); // reset

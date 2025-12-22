@@ -142,6 +142,8 @@ public class Main extends Game {
         assets.load("models/dajjal.g3db", Model.class);
         assets.load("models/majuj/majuj.g3db", Model.class);
         assets.load("models/yajuj/yajuj.g3db", Model.class);
+        assets.load("models/medkit.g3db", Model.class);
+        assets.load("models/ammo.g3db", Model.class);
 
         // --- LOAD TEXTURES ---
         assets.load("textures/batang_pohon.png", Texture.class);
@@ -157,6 +159,10 @@ public class Main extends Game {
         assets.load("models/yajuj/yajuj2.png", Texture.class);
         assets.load("models/yajuj/yajuj3.png", Texture.class);
         assets.load("models/yajuj/yajuj4.png", Texture.class);
+
+        assets.load("models/ammo.png", Texture.class);
+        assets.load("models/bullet1.png", Texture.class);
+        assets.load("models/bullet2.png", Texture.class);
 
         assets.load("models/weapons.g3db", Model.class);
         assets.load("textures/crosshair.png", Texture.class);

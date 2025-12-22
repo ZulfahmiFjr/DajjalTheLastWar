@@ -51,6 +51,8 @@ public abstract class BaseEnemy {
     private final float BODY_SCALE = 0.022f;
     protected State currentState;
     protected float currentYaw = 0f;
+    // var tumbal buat itung itungan vector biar gak new new terus
+    private final Vector3 tmpSep = new Vector3();
 
     // nama animasi bawaan dari blender
     protected String ANIM_IDLE = "Armature|idle";
@@ -258,10 +260,17 @@ public abstract class BaseEnemy {
                 // kalau terlalu deket kurang dari radius personal
                 if(d < separationRadius && d > 0){
                     // hitung vektor menjauh posisi kita dikurang posisi dia
-                    Vector3 push = new Vector3(position).sub(other.position);
-                    push.nor(); // normalisasi biar jadi arah doang
-                    push.scl(1.0f / d); // semakin deket dorongannya semakin kuat inverse distance
-                    separationForce.add(push);
+//                    Vector3 push = new Vector3(position).sub(other.position);
+//                    push.nor(); // normalisasi biar jadi arah doang
+//                    push.scl(1.0f / d); // semakin deket dorongannya semakin kuat inverse distance
+//                    separationForce.add(push);
+                    // pake tmpSep buat hemat memori yg udah kita deklarasi di atas
+                    tmpSep.set(position);
+                    tmpSep.sub(other.position);
+                    tmpSep.nor(); // normalisasi
+                    tmpSep.scl(1.0f / d); // scalingg
+                    // tambahin ke separationForce
+                    separationForce.add(tmpSep);
                     count++;
                 }
             }

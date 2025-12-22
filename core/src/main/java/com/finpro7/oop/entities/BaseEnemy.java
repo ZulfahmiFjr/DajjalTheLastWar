@@ -62,12 +62,12 @@ public abstract class BaseEnemy {
 
     public BaseEnemy() { }
 
-    public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> allEnemies) {
+    public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> allEnemies, PlayerStats playerStats) {
         if(isReadyToRemove) return;
         targetPos.set(playerPos);
         if(animController != null) animController.update(delta);
         // Update State
-        if(currentState != null) currentState.update(delta, playerPos, terrain, trees, allEnemies);
+        if(currentState != null) currentState.update(delta, playerPos, terrain, trees, allEnemies, playerStats);
         // kalo mati kita serahin urusan posisi/rotasi ke DeathState sepenuhnya.
         // BaseEnemy cuma ngurus transform kalo dia masih HIDUP.
         if (!isDead) {
@@ -134,7 +134,7 @@ public abstract class BaseEnemy {
     // bagain state machinenyaa
     public abstract class State {
         public abstract void enter(Terrain terrain);
-        public abstract void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies);
+        public abstract void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats);
     }
 
     // state emerge pas muncul dari dalem tanah
@@ -152,7 +152,7 @@ public abstract class BaseEnemy {
         }
 
         @Override
-        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies) {
+        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             position.y += riseSpeed * delta;
             if(position.y >= finalY){
                 position.y = finalY;
@@ -175,7 +175,7 @@ public abstract class BaseEnemy {
         }
 
         @Override
-        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies) {
+        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             float dist = position.dst(playerPos);
             // cek jarak buat nyerang pake variabel attackRange dinamis
             if(dist < attackRange){
@@ -282,7 +282,7 @@ public abstract class BaseEnemy {
         }
 
         @Override
-        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies) {
+        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             timer += delta;
             // logika damage sederhana
             if(timer > 0.4f && !hasDealtDamage){
@@ -290,7 +290,10 @@ public abstract class BaseEnemy {
                 // cek lagi jaraknya pas pukul biar kalo player kabur gak kena
                 if(dist <= attackRange + 0.5f){
                     // kurangi darah player disini
-                    System.out.println("Player kena pukul! Damage: " + damage);
+                    if(playerStats != null) {
+                        playerStats.takeDamage(damage);
+                        System.out.println("Player kena pukul! Damage: " + damage);
+                    }
                     hasDealtDamage = true;
                 }
             }
@@ -316,7 +319,7 @@ public abstract class BaseEnemy {
         }
 
         @Override
-        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies) {
+        public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             deathTimer += delta;
 
             // FASE 1: REBAHAN (0 detik - 1 detik)

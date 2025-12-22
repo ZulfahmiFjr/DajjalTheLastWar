@@ -9,10 +9,12 @@ public class EnemyFactory {
 
     private Model yajujModel;
     private Model majujModel;
+    private Model dajjalModel;
 
-    public EnemyFactory(Model yajujModel, Model majujModel) {
+    public EnemyFactory(Model yajujModel, Model majujModel, Model dajjalModel) {
         this.yajujModel = yajujModel;
         this.majujModel = majujModel;
+        this.dajjalModel = dajjalModel;
     }
 
     // method ini butuh objek basestage buat ngintip statsnya
@@ -42,5 +44,15 @@ public class EnemyFactory {
         // set animasi awalnya pas muncul kyak keluar dari tanah gitu
         enemy.switchState(enemy.new EmergeState(), terrain);
         return enemy;
+    }
+
+    // method khusus buat spawn boss dajjal
+    public BaseEnemy spawnDajjal(float x, float z, Terrain terrain){
+        float y = terrain.getHeight(x, z);
+        DajjalEntity boss = new DajjalEntity(dajjalModel, x, y, z);
+        // dajjal langsung mode ngejar aja, gak usah emerge biar langsung gelut
+//        boss.switchState(boss.new ChaseState(), terrain);
+        boss.switchState(boss.new DajjalChaseState(), terrain);
+        return boss;
     }
 }

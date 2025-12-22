@@ -124,14 +124,18 @@ public abstract class Firearm {
 
     public void shoot() {
         // Fungsi saat tombol tembak ditekan
-        if (isReloading) return; // kalau lagi reload gak bisa nembak
         if (isReloading) {
             System.out.println("Memasukkan peluru...");
             return;
         }
 
         if (ammoInClip <= 0) {
-            System.out.println("Klik! Peluru habis. Tekan R untuk reload!");
+            // LOGIKA BARU: Coba Auto-Reload kalau peluru abis
+            if (totalAmmo > 0) {
+                reload();
+            } else {
+                System.out.println("Klik! Peluru habis total!");
+            }
             return;
         }
 

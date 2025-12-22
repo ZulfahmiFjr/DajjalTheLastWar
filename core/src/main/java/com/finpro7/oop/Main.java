@@ -96,7 +96,7 @@ public class Main extends Game {
         Label.LabelStyle shadowStyle = new Label.LabelStyle(fontTitle, Color.BLACK);
         skin.add("shadow", shadowStyle);
 
-        Label.LabelStyle subStyle = new Label.LabelStyle(fontButton, COLOR_BLOOD);
+        Label.LabelStyle subStyle = new Label.LabelStyle(fontButton, Color.WHITE);
         skin.add("subtitle", subStyle);
 
         Label.LabelStyle textStyle = new Label.LabelStyle(fontSmall, Color.WHITE);

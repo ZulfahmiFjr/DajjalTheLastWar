@@ -183,6 +183,33 @@ public class LoginScreen implements Screen {
                     public void run() {
                         if (statusCode == 200) {
                             if (endpoint.equals("/login")) {
+                                System.out.println("RESPON DARI SERVER: " + result);
+
+                                // --- PROTEKSI BIAR GAK CRASH (NULLPOINTER) ---
+                                int totalKoinDariDb = 0;
+                                boolean hasAkDariDb = false;
+
+                                if (result != null && !result.trim().isEmpty() && result.startsWith("{")) {
+                                    try {
+                                        com.badlogic.gdx.utils.JsonReader json = new com.badlogic.gdx.utils.JsonReader();
+                                        com.badlogic.gdx.utils.JsonValue base = json.parse(result);
+                                        // Pake default 0 kalo kuncinya gak ada
+                                        totalKoinDariDb = base.getInt("coins", 0);
+                                        hasAkDariDb = base.getBoolean("hasAk", false);
+                                    } catch (Exception e) {
+                                        System.out.println("Gagal baca JSON: " + e.getMessage());
+                                    }
+                                } else {
+                                    System.out.println("SERVER CUMA NGIRIM TEKS BIASA, BUKAN OBJEK USER!");
+                                }
+
+                                // Tetep simpen datanya ke Preferences
+                                com.badlogic.gdx.Preferences prefs = Gdx.app.getPreferences("UserSession");
+                                prefs.putString("current_user", user);
+                                prefs.putInteger("total_coins", totalKoinDariDb);
+                                prefs.putBoolean("has_ak", hasAkDariDb);
+                                prefs.flush();
+
                                 game.setScreen(new MenuScreen(game));
                             } else {
                                 statusLabel.setText("Register Berhasil! Silakan Login.");

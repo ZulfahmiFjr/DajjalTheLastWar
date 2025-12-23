@@ -1,4 +1,5 @@
 # 👁️ Dajjal: The Last War 🏔️
+![picture dajjal](https://raw.githubusercontent.com/imhotepes/ProgDas/main/caches/6657f8e1436d0638ba11a780410e13da6ff614df0183f3907f56ca30b0c132c6.png)
 
 ![Java](https://img.shields.io/badge/Language-Java-orange) ![Framework](https://img.shields.io/badge/Framework-LibGDX-red) ![Backend](https://img.shields.io/badge/Backend-SpringBoot-green) ![Platform](https://img.shields.io/badge/Platform-Desktop%20%7C%20Web-lightgrey) ![Status](https://img.shields.io/badge/Status-In%20Development-blue)
 

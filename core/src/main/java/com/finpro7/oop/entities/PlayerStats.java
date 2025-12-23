@@ -2,41 +2,46 @@ package com.finpro7.oop.entities;
 
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.math.MathUtils;
 
 public class PlayerStats {
 
-    // ================= HEALTH =================
+    // --- stat player ---
     public float maxHealth = 100f;
     public float health = 100f;
-
-    // ================= STAMINA =================
     public float maxStamina = 100f;
     public float stamina = 100f;
+    public int currentCoins = 0;
 
-    // ================= STAMINA CONFIG =================
+    // --- stamina update pas udah mulai ---
+    // ini buat ngurangin stamina pas lari
+    public float staminaDrainSprint = 10f; // SHIFT + WASD / pas lari
 
-    // drain
-    public float staminaDrainSprint = 10f;   // SHIFT + WASD
+    // kalo ini buat ngisi lagi staminanya
+    public float staminaRegenWalk = 7f; // jalan biasa
+    public float staminaRegenIdle = 10f; // diam
 
-    // regen
-    public float staminaRegenWalk = 7f;      // jalan biasa
-    public float staminaRegenIdle = 10f;     // diam
-
-    // Delay system
+    // pake jeda biar gak langsung penuh
     private boolean staminaLocked = false;
     private float staminaRegenDelay = 3f;
     private float staminaRegenTimer = 0f;
-
     public boolean isSprinting = false;
 
-    // ================= UPDATE =================
+    // konstruktor buat muat data koin pas awal game jalan
+    public PlayerStats() {
+        Preferences prefs = Gdx.app.getPreferences("UserSession");
+        // ambil data koin terakhir, kalo gak ada anggap aja 0
+        this.currentCoins = prefs.getInteger("total_coins", 0);
+    }
+
+    // update stats pas lagi main
     public void update(float delta, boolean isMoving) {
 
         boolean shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT);
 
         if (isMoving && shiftPressed && stamina > 0) {
-            // SPRINT
+            // logika lari ngabisin stamina
             isSprinting = true;
             stamina -= staminaDrainSprint * delta;
             staminaRegenTimer = 0f;
@@ -51,12 +56,12 @@ public class PlayerStats {
 
             if (!shiftPressed) {
                 if (isMoving) {
-                    // Jalan biasa → regen lambat
+                    // jalan biasa isinya pelan
                     if (!staminaLocked) {
                         stamina += staminaRegenWalk * delta;
                     }
                 } else {
-                    // Diam → regen cepat
+                    // kalo diem isinya ngebut
                     if (staminaLocked) {
                         staminaRegenTimer += delta;
                         if (staminaRegenTimer >= staminaRegenDelay) {
@@ -69,10 +74,22 @@ public class PlayerStats {
             }
         }
 
+        // pastiin stamina gak minus atau kelebihan
         stamina = MathUtils.clamp(stamina, 0f, maxStamina);
     }
 
-    // ================= DAMAGE =================
+    // method baru buat nambah koin dan save otomatis
+    public void addCoins(int amount) {
+        // update di memori
+        this.currentCoins += amount;
+
+        // langsung simpen ke lokal biar kalo crash atau offline tetep aman
+        Preferences prefs = Gdx.app.getPreferences("UserSession");
+        prefs.putInteger("total_coins", this.currentCoins);
+        prefs.flush(); // wajib flush biar beneran kesimpen di harddisk/hp
+    }
+
+    // bagian damage player
     public void takeDamage(float dmg) {
         health -= dmg;
         if (health < 0) health = 0;

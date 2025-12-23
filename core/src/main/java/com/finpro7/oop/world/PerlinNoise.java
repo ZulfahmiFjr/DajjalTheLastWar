@@ -1,4 +1,4 @@
-package com.finpro7.oop;
+package com.finpro7.oop.world;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;

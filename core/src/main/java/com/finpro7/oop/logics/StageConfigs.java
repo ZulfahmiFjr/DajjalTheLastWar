@@ -54,7 +54,7 @@ public class StageConfigs {
         @Override public float getHpMultiplier() { return 2.2f; }
         @Override public float getSpeedMultiplier() { return 1.6f; }
         @Override public float getDamageMultiplier() { return 1.8f; }
-        @Override public float getSpawnInterval() { return 1.5f; } // Makin cepet munculnya
+        @Override public float getSpawnInterval() { return 1.5f; } // makin cepet munculnya
     }
 
     // STAGE 6: THE PEAK (Neraka)

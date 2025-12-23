@@ -1,15 +1,13 @@
 package com.finpro7.oop.world.weapon;
 
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.finpro7.oop.Main;
 
 public class AkRifle extends Firearm {
 
-    // Helper class untuk menampung data awal senjata
+    // helper buat nyimpen data awal model 3d
     public static class Template {
         public ModelInstance model;
         public Vector3 muzzlePoint;
@@ -20,30 +18,28 @@ public class AkRifle extends Firearm {
     }
 
     Array<String> meshNames = new Array<>(16);
-    String magName = "default-mag";
 
     public AkRifle(Object player) {
-        // Memanggil constructor Firearm
-        super(player, com.finpro7.oop.Main.autoRifleTemplate);
+        super(player, Main.autoRifleTemplate);
         this.name = "Assault Rifle";
-        this.maxAmmoInClip = 20;  // isi magazine 20
-        this.ammoInClip = 20;     // mulai penuh
-        this.totalAmmo = 400;      // cadangan peluru 400
+        this.maxAmmoInClip = 20;
+        this.ammoInClip = 20;
+        this.totalAmmo = 400;
         this.damage = 3f;
         this.meshNames.add("ak");
 
-        this.aimSightY = -0.4f; // Mengatur tinggi
-        this.aimSightZ = -0.5f;  // Mengatur Mundur/Maju
+        this.aimSightY = -0.4f;
+        this.aimSightZ = -0.5f;
     }
 
-    // Fungsi buat bikin AK standar
+    // bikin ak standar tanpa modifikasi
     public static AkRifle generateDefault() {
         AkRifle weapon = new AkRifle(null);
         weapon.updateModel();
         return weapon;
     }
 
-    // Rakit model 3D berdasarkan meshNames yang di-add tadi
+    // rakit modelnya dari potongan mesh yang ada
     @Override
     public void updateModel() {
         if (Main.weaponsModel != null) {

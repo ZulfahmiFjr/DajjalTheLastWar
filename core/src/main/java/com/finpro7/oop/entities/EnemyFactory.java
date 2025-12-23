@@ -17,41 +17,46 @@ public class EnemyFactory {
         this.dajjalModel = dajjalModel;
     }
 
-    // method ini butuh objek basestage buat ngintip statsnya
+    // method ini butuh data stage buat ngatur kekuatan musuh
     public BaseEnemy spawnEnemy(float x, float z, Terrain terrain, StageConfigs.BaseStage stageData){
-        // ngocok dadu dulu buat nentuin spawn yajuj atau majuj
+        // acak mau spawn yajuj atau majuj
         boolean isYajuj = MathUtils.randomBoolean();
         BaseEnemy enemy;
         if(isYajuj){
             enemy = new Yajuj(yajujModel);
         }else enemy = new Majuj(majujModel);
-        // ini angka dasar atau base statsnya sebelum diapa apain
+
+        // stats dasar musuh sebelum dikali level
         float baseHp = 40f;
         float baseWalk = 2.5f;
         float baseRun  = 5.0f;
         float baseRange = 3.5f;
         float baseDmg = 10f;
-        // nahh di sini baru dikaliin sama multiplier dari stage data
+
+        // kaliin stats dasar sama multiplier dari stage
         enemy.maxHealth = baseHp * stageData.getHpMultiplier();
         enemy.health = enemy.maxHealth;
         enemy.walkSpeed = baseWalk * stageData.getSpeedMultiplier();
         enemy.runSpeed = baseRun * stageData.getSpeedMultiplier();
         enemy.damage = baseDmg * stageData.getDamageMultiplier();
-        enemy.attackRange = baseRange * ((stageData.getSpeedMultiplier() + 1f) / 2f); // jangkauan serangannya dibikin makin jauh dikit kalo stagenya makin tinggi
-        // nentuin posisi y ambil dari tinggi terrain biar napak
+        // jarak serang makin jauh dikit kalo musuh makin cepet
+        enemy.attackRange = baseRange * ((stageData.getSpeedMultiplier() + 1f) / 2f);
+
+        // atur posisi y sesuai tinggi tanah
         float y = terrain.getHeight(x, z);
         enemy.position.set(x, y, z);
-        // set animasi awalnya pas muncul kyak keluar dari tanah gitu
+
+        // mulai dengan animasi keluar dari tanah
         enemy.switchState(enemy.new EmergeState(), terrain);
         return enemy;
     }
 
-    // method khusus buat spawn boss dajjal
+    // method khusus buat spawn boss terakhir
     public BaseEnemy spawnDajjal(float x, float z, Terrain terrain){
         float y = terrain.getHeight(x, z);
         DajjalEntity boss = new DajjalEntity(dajjalModel, x, y, z);
-        // dajjal langsung mode ngejar aja, gak usah emerge biar langsung gelut
-//        boss.switchState(boss.new ChaseState(), terrain);
+
+        // dajjal langsung ngejar gak pake animasi keluar tanah
         boss.switchState(boss.new DajjalChaseState(), terrain);
         return boss;
     }

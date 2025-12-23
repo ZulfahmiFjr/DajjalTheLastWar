@@ -9,6 +9,6 @@ public class Majuj extends BaseEnemy {
     public Majuj(Model model) {
         this.modelInstance = new ModelInstance(model);
         this.animController = new AnimationController(modelInstance);
-        // majuj ini bisa aja disetting lebih gede atau animasinya dibedain gitu biar variatif
+        // bisa ditambahin logic khusus majuj kalo ada waktuu
     }
 }

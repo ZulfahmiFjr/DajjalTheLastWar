@@ -7,7 +7,7 @@ import com.badlogic.gdx.math.Vector3;
 
 public class ItemPickup {
 
-    // Kita kasih label biar tau ini barang apaan
+    // label buat nandain ini jenis item apa
     public enum Type {
         COIN,
         HEALTH,
@@ -17,7 +17,7 @@ public class ItemPickup {
     public ModelInstance instance;
     public Vector3 position = new Vector3();
     public Type type;
-    public int value; // Nilainya (misal: 10 koin, 20 darah, atau 30 peluru)
+    public int value; // isi itemnya misal 10 koin
 
     private float originalY;
     private float angle = 0f;
@@ -30,22 +30,22 @@ public class ItemPickup {
         this.type = type;
         this.value = value;
 
-        // Sedikit random biar gak sinkron semua muternya (biar natural)
+        // kasih waktu random biar muternya gak barengan semua
         this.time = MathUtils.random(0f, 10f);
     }
 
     public void update(float delta) {
         time += delta;
-        angle += 100f * delta; // Kecepatan muter
+        angle += 100f * delta; // kecepatan putaran item
 
-        // Efek naik turun (Bobbing)
+        // efek ngambang naik turun
         float bobOffset = MathUtils.sin(time * 3f) * 0.25f;
 
         this.instance.transform.idt();
         this.instance.transform.translate(position.x, originalY + bobOffset, position.z);
         this.instance.transform.rotate(Vector3.Y, angle);
 
-        // Khusus koin biasanya gepeng berdiri, kalo kotak (ammo/health) biarin datar aja
+        // khusus koin kita puter lagi biar berdiri tegak
         if (type == Type.COIN) {
             this.instance.transform.rotate(Vector3.Z, 90f);
             this.instance.transform.scale(0.5f, 0.5f, 0.5f);
@@ -53,8 +53,6 @@ public class ItemPickup {
             float s = 0.0015f;
             this.instance.transform.scale(s, s, s);
         } else {
-            // Kalo health/ammo ukurannya seseuaiin dikit
-//            this.instance.transform.scale(0.4f, 0.4f, 0.4f);
             float s = 0.00035f;
             this.instance.transform.scale(s, s, s);
         }

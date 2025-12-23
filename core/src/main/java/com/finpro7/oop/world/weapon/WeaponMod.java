@@ -12,9 +12,10 @@ public abstract class WeaponMod {
     }
 
     public void applyMod(Firearm firearm) {
-        mod(firearm); // Ubah statistik senjatanya
+        mod(firearm); // nerapin perubahan status senjatanya
         firearm.mods.add(hashName);
     }
-    // Detail apa yang diubah (damage, akurasi, dll) diatur di sini
+
+    // logic detail perubahannya misal damage nambah, akurasi turun, ditulis di sini
     abstract void mod(Firearm firearm);
 }

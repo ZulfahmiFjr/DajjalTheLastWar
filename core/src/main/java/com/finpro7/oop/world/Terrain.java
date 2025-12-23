@@ -12,7 +12,6 @@ import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
-import com.finpro7.oop.PerlinNoise;
 
 public class Terrain implements Disposable {
 
@@ -339,108 +338,38 @@ public class Terrain implements Disposable {
 
     // buat dapet titik spawn yajuj majuj
     public boolean getSpawnPointAhead(Vector3 playerPos, float minDistance, float maxDistance, Vector3 outPos){
-        // 1. Cari tau posisi radius player dari tengah
+        // cari tau posisi radius player dari tengah
         float distToCenter = (float)Math.sqrt(playerPos.x * playerPos.x + playerPos.z * playerPos.z);
         distToCenter = MathUtils.clamp(distToCenter, roadEndRadius, roadStartRadius);
-        // 2. Itung sudut (theta) player saat ini
+        // itung sudut (theta) player saat ini
         float currentTheta = (roadStartRadius - distToCenter) / roadPitch;
-        // 3. Tentuin mau spawn seberapa jauh di depan (sudut target)
+        // nentuin mau spawn seberapa jauh di depan (sudut target)
         float offsetTheta = MathUtils.random(minDistance, maxDistance) * 0.02f;
         float targetTheta = currentTheta + offsetTheta;
-        // Cek biar gak bablas lewat puncak
+        // cek biar gak bablas lewat puncak
         float maxTheta = roadTurns * MathUtils.PI2;
         if(targetTheta > maxTheta) targetTheta = maxTheta - 0.1f;
-        // 4. Balikin ke koordinat X, Z (Polar to Cartesian)
+        // balikin ke koordinat X, Z (Polar to Cartesian)
         float targetRadius = roadStartRadius - roadPitch * targetTheta;
-        // Variasi kiri-kanan jalan
+        // variasi kiri kanan jalan
         float widthOffset = MathUtils.random(-3.5f, 3.5f); // dikurangin dikit biar gak terlalu pinggir jurang
         targetRadius += widthOffset;
         outPos.x = targetRadius * MathUtils.cos(targetTheta);
         outPos.z = targetRadius * MathUtils.sin(targetTheta);
-        // 5. Ambil tinggi tanah di titik itu
+        // ambil tinggi tanah di titik itu
         float terrainHeight = getHeight(outPos.x, outPos.z);
         outPos.y = terrainHeight;
-        // --- VALIDASI LANTAI (HEIGHT CHECK) ---
-        // Ini kuncinya! Kita cek beda tinggi antara titik spawn sama player.
-        // Karena jalan spiral itu nanjak landai, harusnya bedanya gak ekstrem.
-        // Kalau bedanya lebih dari 8 meter (misal), berarti dia loncat ke lantai atas/bawah.
+        // kalo bedanya lebih dari 8 meter (misal) berarti dia loncat ke lantai atas/bawah.
         float heightDifference = Math.abs(terrainHeight - playerPos.y);
-        // Batas toleransi beda tinggi (sesuaikan sama kemiringan gunungmu)
-        // 8.0f itu kira-kira setinggi tiang listrik, kalau lebih dari itu pasti beda lantai.
+        // batas toleransi beda tinggi
         float maxAllowedDiff = 8.0f;
         if (heightDifference > maxAllowedDiff) {
-            return false; // GAGAL: Kejauhan beda tingginya (beda lantai)
+            return false; // gagal, kejauhan beda tingginya (beda lantai)
         }
-        return true; // SUKSES: Masih satu lantai/jalur yang sama
+        return true; // suskse masih satu lantai/jalur yg samaa
     }
 
-    // Method baru buat ngitung progres jalan spiral (0.0 = Start, 1.0 = End/Puncak)
-    public float getSpiralProgress(float x, float z) {
-        // Hitung jarak player ke titik tengah map (radius)
-        float r = (float)Math.sqrt(x * x + z * z);
-        // Clamp biar gak bablas itungannya kalo player keluar jalur dikit
-        r = MathUtils.clamp(r, roadEndRadius, roadStartRadius);
-        // Rumus Theta di spiral: theta = (startRadius - currentRadius) / pitch
-        // Kita balik logikanya, kita mau tau persentase 'kelar' nya jalan
-        float totalDist = roadStartRadius - roadEndRadius; // Total jarak radial yg harus ditempuh
-        float currentDist = roadStartRadius - r; // Jarak yg udah ditempuh player
-        float progress = currentDist / totalDist; // Hasilnya 0.0 s/d 1.0
-        return MathUtils.clamp(progress, 0f, 1f);
-    }
-
-    // Method buat ambil range tinggi jalan (Min Y dan Max Y)
-    // Return array float: [0] = Tinggi Start, [1] = Tinggi End
-    public float[] getRoadHeightRange() {
-        // Ambil ketinggian di Start Radius
-        // Kita ambil titik X = startRadius, Z = 0 (posisi awal jalan)
-        float startY = heightAt(roadStartRadius, 0);
-
-        // Ambil ketinggian di End Radius (Puncak)
-        // Kita ambil titik X = roadEndRadius, Z = 0
-        float endY = heightAt(roadEndRadius, 0);
-
-        // Sedikit koreksi: roadEndRadius itu kan pinggir lingkaran puncak.
-        // Titik tertinggi banget mungkin ada di tengah puncak (radius 0).
-        // Tapi buat batas jalan, endRadius udah cukup aman.
-
-        return new float[] { startY, endY };
-    }
-
-    // Method hitung sudut biasa (buat spawn musuh, dll)
-    public float getPlayerTotalAngle(float x, float z) {
-        return calculateAngle(x, z, false);
-    }
-
-    // Method hitung sudut KHUSUS BARRIER (Lebih ketat!)
-    public float getAngleForBarrier(float x, float z) {
-        return calculateAngle(x, z, true);
-    }
-
-    // Method inti perhitungannya
-    private float calculateAngle(float x, float z, boolean applyCorrection) {
-        float r = (float)Math.sqrt(x * x + z * z);
-
-        // --- LOGIKA PERBAIKAN SHOULDER ---
-        if (applyCorrection) {
-            // Kita "bohongi" rumusnya.
-            // Kita kurangi radius player seolah-olah dia ada di pinggir jalan paling dalam.
-            // roadWidth tadi kan 12f, setengahnya 6f. Kita kasih 8f biar aman banget.
-
-            float correction = 8.0f; // Kompensasi lebar jalan + bahu
-            r = r - correction;
-
-            // Logikanya:
-            // r mengecil -> (Start - r) membesar -> Sudut membesar.
-            // Jadi walau player di shoulder luar, sistem bakal ngitung dia
-            // seolah-olah udah maju banget (posisi inner).
-            // Hasilnya: Dia bakal lebih cepet nabrak barrier.
-        }
-
-        float theta = (roadStartRadius - r) / roadPitch;
-        return Math.max(0, theta);
-    }
-
-    // Getter buat data total putaran (buat WaveManager)
+    // getter buat data total putaran buat WaveManager
     public float getMaxRoadAngle() {
         return roadTurns * MathUtils.PI2;
     }

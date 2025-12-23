@@ -12,93 +12,86 @@ import com.finpro7.oop.world.Terrain;
 
 public class DajjalEntity extends BaseEnemy {
 
-    // variabel khusus buat logika serangan ala dajjal (sesuai request)
-    private float sudutKunci = 0f; // buat nyimpen arah muka pas lagi nonjok
-    private boolean lagiNyerang = false; // flag biar tau lagi mode gebuk apa lari
+    // variabel buat nyimpen arah muka pas lagi mukul biar gak muter muter
+    private float sudutKunci = 0f;
+    private boolean lagiNyerang = false; // penanda lagi mode serangan atau lari
 
     public DajjalEntity(Model model, float x, float y, float z) {
         super();
-        this.manualTransform = true;
+        this.manualTransform = true; // kita atur posisi dajjal manual di sini
         this.modelInstance = new ModelInstance(model);
         this.modelInstance.transform.setToTranslation(x, y, z);
         this.animController = new AnimationController(this.modelInstance);
         this.position.set(x, y, z);
 
-        // --- STATS SESUAI BASEENEMY TAPI DIOPREK DIKIT ---
+        // set darahnya tebel banget karena ini boss
         this.maxHealth = 2500f;
         this.health = this.maxHealth;
 
-        // ini speed lari ngejar player (lajuLari di kode lama)
+        // kecepatan lari ngejar player
         this.runSpeed = 10.0f;
 
-        // ini jarak mulai mukul (jarakSerang di kode lama)
+        // jarak mulai mukul dan damagenya
         this.attackRange = 5.0f;
         this.damage = 40f;
 
-        // nama animasi (sesuai request terakhir)
+        // atur nama animasi sesuai model
         this.ANIM_IDLE = "Armature|idle";
         this.ANIM_WALK = "Armature|walk";
-        this.ANIM_RUN = "Armature|walk"; // lari pake animasi walk aja
+        this.ANIM_RUN = "Armature|walk"; // lari pake animasi jalan aja
         this.ANIM_ATTACK = "Armature|hit";
 
-        // langsung masuk mode ngejar pas lahir
-        // pake state khusus dajjal, bukan chase state biasa punya base enemy
+        // pas lahir langsung masuk mode ngejar pake state khusus dajjal
         switchState(new DajjalChaseState(), null);
     }
 
     @Override
     public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> allEnemies, PlayerStats playerStats) {
-        // jalanin update bapaknya dulu biar animasi & darah keurus
+        // panggil update induknya buat ngurus animasi dan darah
         super.update(delta, playerPos, terrain, trees, allEnemies, playerStats);
 
-        // --- OVERRIDE/TIMPA LOGIKA POSISI ---
+        // logika posisi khusus dajjal
         if (!isDead) {
-            // Karena BaseEnemy otomatis muter badan ke player tiap frame,
-            // Kita harus koreksi kalo Dajjal lagi nyerang (dia harus ngunci arah/sudutKunci)
-
-            float yawYangDipake = currentYaw; // defaultnya ngikutin logic base enemy
+            // update ketinggian biar napak tanah
+            position.y = terrain.getHeight(position.x, position.z);
+            float yawYangDipake = currentYaw;
 
             if (lagiNyerang) {
-                // Kalo lagi nyerang, paksa madep ke sudut kunci, jangan tolah toleh ke player
+                // kalo lagi nyerang arah mukanya dikunci jangan nengok nengok
                 yawYangDipake = sudutKunci;
             }else {
-                // Kalo gak nyerang, kita itung rotasi ke player manual di sini
-                // (Persis kyak rotateTowardsPlayer tapi versi Dajjal)
+                // kalo lagi ngejar itung rotasi ke player manual
                 float dx = playerPos.x - position.x;
                 float dz = playerPos.z - position.z;
                 yawYangDipake = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
-                // Update currentYaw biar sinkron kalo perlu
+                // update variabel yaw biar sinkron
                 this.currentYaw = yawYangDipake;
             }
 
-            modelInstance.transform.idt(); // reset
-            modelInstance.transform.translate(position); // taroh di posisi update terbaru
+            modelInstance.transform.idt(); // reset transformasi
+            modelInstance.transform.translate(position); // pindahin ke posisi baru
             modelInstance.transform.rotate(Vector3.Y, yawYangDipake); // puter badan
-            modelInstance.transform.scale(0.05f, 0.05f, 0.05f); // pastiin tetep raksasa
+            modelInstance.transform.scale(0.05f, 0.05f, 0.05f); // pastiin ukurannya tetep raksasa
         }
     }
 
     @Override
     public void takeDamage(float amount, Terrain terrain) {
-        // PENTING: Panggil super biar logic 'isDead', kurangin darah, sama 'setColor(Color.RED)' jalan!
+        // panggil super biar logika mati dan kedip merah tetep jalan
         super.takeDamage(amount, terrain);
 
-        // Logic tambahan khusus Dajjal kalo ditembak
+        // bisa tambah logika khusus dajjal kalo kena damage di sini
         if(!isDead && health > 0){
-            // Misal mau bikin dia langsung nengok ke player pas ditembak?
-            // Bisa atur logic di sini, contoh:
-            // lagiNyerang = false; // Batalin serangan kalo kesakitan? (Opsional)
+            // contoh: batalin serangan kalo sakit banget
         }
     }
 
-    // --- STATE KHUSUS DAJJAL (ADAPTASI DARI KODE LAMA KAMU) ---
-
-    // 1. Logic Ngejar (Simpel, lurus doang gak pake hindar pohon biar ganas)
+    // state khusus buat dajjal ngejar player
     public class DajjalChaseState extends State {
         @Override
         public void enter(Terrain terrain) {
             lagiNyerang = false;
-            // set animasi lari (walk)
+            // set animasi lari
             animController.setAnimation(ANIM_RUN, -1, 2.0f, null);
         }
 
@@ -108,14 +101,13 @@ public class DajjalEntity extends BaseEnemy {
             float dz = playerPos.z - position.z;
             float jarakKePlayer = (float)Math.sqrt(dx*dx + dz*dz);
 
-            // kalo udah deket banget, sikat!
+            // kalo udah deket langsung hajar
             if (jarakKePlayer <= attackRange) {
                 switchState(new DajjalAttackState(), terrain);
                 return;
             }
 
-            // Logic gerak lurus kyak kode lama (ModeMemburu bagian else)
-            // Gak pake steering behavior ribet, pokoknya tabrak lurus
+            // dajjal geraknya lurus aja gak usah hindar pohon biar ganas
             float dirX = 0;
             float dirZ = 0;
             if (jarakKePlayer > 0) {
@@ -123,33 +115,32 @@ public class DajjalEntity extends BaseEnemy {
                 dirZ = dz / jarakKePlayer;
             }
 
-            // Maju jalan!
-            // kita pake runSpeed (10.0f) sesuai request
+            // maju jalan ngejar player
             position.x += dirX * runSpeed * delta;
             position.z += dirZ * runSpeed * delta;
         }
     }
 
-    // 2. Logic Nyerang (Ada maju dikit + Kunci Rotasi)
+    // state khusus buat dajjal nyerang
     public class DajjalAttackState extends State {
         float timerSerangan = 0f;
-        float batasGerak = 2.0f; // durasi maju pas nonjok
+        float batasGerak = 2.0f; // durasi maju dikit pas nonjok
 
         @Override
         public void enter(Terrain terrain) {
             lagiNyerang = true;
             timerSerangan = 0f;
 
-            // itung sudut ke player SAAT INI, trus kunci.
+            // itung arah ke player saat ini terus kunci
             float dx = targetPos.x - position.x;
             float dz = targetPos.z - position.z;
             sudutKunci = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
 
-            // mainin animasi pukul sekali, kalo kelar balik ngejar
+            // mainin animasi pukul sekali kalo kelar balik ngejar
             animController.animate(ANIM_ATTACK, 1, 1.5f, new AnimationListener() {
                 @Override
                 public void onEnd(AnimationDesc animation) {
-                    // pas animasi kelar, balik jadi anak baik (ngejar lagi)
+                    // animasi kelar balik jadi ngejar lagi
                     switchState(new DajjalChaseState(), terrain);
                 }
                 @Override
@@ -161,11 +152,10 @@ public class DajjalEntity extends BaseEnemy {
         public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             timerSerangan += delta;
 
-            // Logika maju dikit pas mukul (biar kerasa impactnya)
-            // sesuai request: lajuNyerang = 5.0f
+            // dajjal maju dikit pas mukul biar kerasa impactnya
             if (timerSerangan < batasGerak) {
                 float lajuNyerang = 5.0f;
-                // maju sesuai arah sudutKunci
+                // maju sesuai arah yang udah dikunci
                 float forwardX = MathUtils.sinDeg(sudutKunci);
                 float forwardZ = MathUtils.cosDeg(sudutKunci);
 
@@ -173,15 +163,13 @@ public class DajjalEntity extends BaseEnemy {
                 position.z += forwardZ * lajuNyerang * delta;
             }
 
-            // Logic deal damage sederhana
-            // Kalo animasi udah jalan setengah (misal detik ke 0.5), cek kena gak
+            // logika kena damage pas animasi pukulan lagi jalan
             if(timerSerangan > 0.5f && timerSerangan < 0.6f){
                 float dist = position.dst(playerPos);
-                if(dist <= attackRange + 1.0f){ // tambah dikit range toleransi
-                    // Disini nanti logic kurangin darah player kalo ada
-                    // System.out.println("DAJJAL HIT PLAYER!");
+                // kasih toleransi jarak dikit
+                if(dist <= attackRange + 1.0f){
                     if(playerStats != null) {
-                        // Dajjal damage sakit bos!
+                        // kurangi darah player sakit banget nih
                         playerStats.takeDamage(damage);
                         System.out.println("DAJJAL GEBUK PLAYER!");
                     }

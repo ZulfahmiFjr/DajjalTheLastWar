@@ -17,17 +17,20 @@ public class WaveManager {
     private int enemiesKilledInStage = 0; // yang udah modar berapa
     private float timer = 0f;
 
-    // penanda buat ngasih tau UI kalo stagenya barusan ganti
+    // penanda buat ngasih tau ui kalo stagenya barusan ganti
     public boolean justChangedStage = false;
 
     private float totalPlayerAngle = 0f; // akumulasi sudut total (bisa lebih dari 360 derajat)
-    private float lastRawAngle = 0f; // sudut frame sebelumnya (-PI sampe PI)
+    private float lastRawAngle = 0f; // sudut frame sebelumnya (-pi sampe pi)
     private boolean isFirstUpdate = true;
     private float maxTotalAngle; // total sudut jalan muter sampe puncak
     private float anglePerStage; // jatah sudut putaran per stage
 
-    // INI DIA VARIABEL BARU BUAT HUD BIAR BISA NAMPILIN TOTALNYAA
+    // ini dia variabel baru buat hud biar bisa nampilin totalnya
     private int totalEnemiesForCurrentStage = 0;
+
+    // buat debug dimatiin dulu biar main jujur dari awal
+    private boolean debugModeStage6 = false;
 
     public WaveManager() {
         currentStage = null; // awalnya belum masuk stage mana mana masih di basecamp bawah
@@ -44,9 +47,9 @@ public class WaveManager {
         updatePlayerAngle(playerPos.x, playerPos.z);
 
         // itung kita lagi di stage berapa berdasarkan progres nanjak
-        int calculatedStage = MathUtils.ceil((totalPlayerAngle / maxTotalAngle) * 6);
+        int calculatedStage = MathUtils.ceil(((totalPlayerAngle / maxTotalAngle) * 6) + 0.1f);
         if(calculatedStage < 1) calculatedStage = 1;
-        if(calculatedStage > 6) calculatedStage = 6;
+        if(calculatedStage > 7) calculatedStage = 7;
 
         // kalo player nyolong start ke stage berikutnya padahal musuh belum abis, kita paksa tahan di stage lama (barrier logic)
         if(currentStageIndex > 0 && calculatedStage > currentStageIndex && !isStageCleared()) calculatedStage = currentStageIndex;
@@ -57,9 +60,9 @@ public class WaveManager {
             enemiesSpawnedInStage = 0; // reset itungan spawn
             enemiesKilledInStage = 0; // reset kill counter juga biar mulai dari nol di stage baru
             timer = 0f; // reset timer
-            justChangedStage = true; // kasih sinyal ke UI!
+            justChangedStage = true; // kasih sinyal ke ui!
 
-            // switch Class strategi musuh sesuai stage, ini polymorphism
+            // switch class strategi musuh sesuai stage, ini polymorphism
             switch(currentStageIndex){
                 case 1: currentStage = new StageConfigs.StageOne(); break;
                 case 2: currentStage = new StageConfigs.StageTwo(); break;
@@ -67,8 +70,11 @@ public class WaveManager {
                 case 4: currentStage = new StageConfigs.StageFour(); break;
                 case 5: currentStage = new StageConfigs.StageFive(); break;
                 case 6: currentStage = new StageConfigs.StageSix(); break;
+                case 7:
+                    currentStage = null; // stop spawn kroco, ini panggungnya dajjal!
+                    break;
             }
-            // biar GameScreen bisa ambil angkanya buat HUD
+            // biar gamescreen bisa ambil angkanya buat hud
             if(currentStage != null){
                 totalEnemiesForCurrentStage = currentStage.getTotalEnemies();
             }
@@ -81,7 +87,7 @@ public class WaveManager {
             if(timer >= currentStage.getSpawnInterval()){
                 // coba cari posisi spawn valid, spawn di depan player jarak 5-10 meter
                 if(terrain.getSpawnPointAhead(playerPos, 5f, 10f, spawnPos)){
-                    // spawn musuh pake Factory
+                    // spawn musuh pake factory
                     BaseEnemy enemy = factory.spawnEnemy(spawnPos.x, spawnPos.z, terrain, currentStage);
                     activeEnemies.add(enemy);
                     enemiesSpawnedInStage++; // tambahin counter spawn
@@ -92,28 +98,31 @@ public class WaveManager {
     }
 
     private void updatePlayerAngle(float x, float z){
-        // itung sudut murni geometris (-PI sampe PI)
+        // itung sudut murni geometris (-pi sampe pi)
         float currentRawAngle = MathUtils.atan2(z, x);
+
+        // inisialisasi awal pas game baru mulai
         if(isFirstUpdate){
             lastRawAngle = currentRawAngle;
-            totalPlayerAngle = 0f; // asumsi start di sudut 0
+            totalPlayerAngle = 0f; // start normal dari sudut nol (bawah)
             isFirstUpdate = false;
             return;
         }
+
         // itung selisih putaran dari frame kemaren
         float delta = currentRawAngle - lastRawAngle;
-        // logic buat handle perbatasan 180 derajat (PI) biar gak bug muter balik
+        // logic buat handle perbatasan 180 derajat (pi) biar gak bug muter balik
         if(delta < -MathUtils.PI){
             delta += MathUtils.PI2; // nambah 360 derajat
         }else if(delta > MathUtils.PI) delta -= MathUtils.PI2; // kurang 360 derajat
         // update total
         totalPlayerAngle += delta;
-        // karena posisi start di Terrain mungkin bukan di sudut 0 pas, kita clamp biar gak negatif di awal
+        // karena posisi start di terrain mungkin bukan di sudut 0 pas, kita clamp biar gak negatif di awal
         if(totalPlayerAngle < 0) totalPlayerAngle = 0;
         lastRawAngle = currentRawAngle;
     }
 
-    // barrier/tembok pake itungan sudut murni
+    // barrier atau tembok pake itungan sudut murni
     public float getAngleBarrier(){
         if(isStageCleared()) return 99999f; // kalo clear, barrier ilang (angka gede banget)
         float barrierAngle = currentStageIndex * anglePerStage;
@@ -121,7 +130,7 @@ public class WaveManager {
         return barrierAngle + 0.17f;
     }
 
-    // getter buat GameScreen ngecek posisi sudut player
+    // getter buat gamescreen ngecek posisi sudut player
     public float getPlayerCurrentAngle(){
         return totalPlayerAngle;
     }
@@ -144,7 +153,7 @@ public class WaveManager {
         return Math.max(0, left); // biar gak minus angkanya jaga jaga
     }
 
-    // GETTER BARU BUAT UI DI GAMESCREEN
+    // getter baru buat ui di gamescreen
     public int getTotalEnemiesInStage(){
         return totalEnemiesForCurrentStage;
     }

@@ -20,47 +20,53 @@ public abstract class BaseEnemy {
     private final Vector3 tmpTreePos = new Vector3();
     private final Vector3 separationForce = new Vector3();
     private final Vector3 moveDirection = new Vector3();
-    // var bantu buat collision
+
+    // variabel bantu buat ngitung tabrakan
     private final Vector3 collisionNormal = new Vector3();
     private final Vector3 slideDirection = new Vector3();
-    public boolean isReadyToRemove = false; // Bendera buat ngasih tau GameScreen "Hapus gue dong"
-    private float deathTimer = 0f; // Timer buat animasi jatuh
 
-    // stats dasar musuhnya
+    // penanda buat ngasih tau game screen kalo musuh ini udah boleh dihapus
+    public boolean isReadyToRemove = false;
+
+    // timer buat nunggu animasi mati selesai sebelum dihapus
+    private float deathTimer = 0f;
+
+    // status dasar musuh kayak darah
     public float health;
     public float maxHealth;
 
-    // urusan kecepatan
-    public float walkSpeed; // pas lagi jalan santai
-    public float runSpeed; // pas lagi lari ngebut
+    // urusan kecepatan gerak
+    public float walkSpeed; // kecepatan jalan santai
+    public float runSpeed; // kecepatan lari ngebut
     protected boolean manualTransform = false;
 
-    // jarak pukul yang bisa berubah ubah
+    // jarak pukul dan karusakannya
     public float attackRange;
     public float damage;
 
     public boolean isDead = false;
     public boolean isRising = false;
-    public boolean countedAsDead = false; // penanda biar kill count gak keitung dobel
+    public boolean countedAsDead = false; // penanda biar skor gak keitung dua kali
 
-    // visual hit
-    private float hitFlashTimer = 0f; //timer buat efek kedip
-    private final Color originalColor = new Color(1,1,1,1); // warna asli
-    private final Color hitColor = new Color(1, 0, 0, 1);   // warna merah
+    // efek visual pas kena pukul
+    private float hitFlashTimer = 0f; // timer buat efek kedip merah
+    private final Color originalColor = new Color(1,1,1,1); // warna normal
+    private final Color hitColor = new Color(1, 0, 0, 1);   // warna merah pas sakit
 
     private final float BODY_SCALE = 0.022f;
     protected State currentState;
     protected float currentYaw = 0f;
-    // var tumbal buat itung itungan vector biar gak new new terus
+
+    // variabel sementara buat itung itungan vektor biar hemat memori
     private final Vector3 tmpSep = new Vector3();
 
-    // nama animasi bawaan dari blender
+    // nama nama animasi bawaan dari model blender
     protected String ANIM_IDLE = "Armature|idle";
     protected String ANIM_WALK = "Armature|walking";
     protected String ANIM_RUN = "Armature|running";
     protected String ANIM_ATTACK = "Armature|attack";
 
-    // batesan jarak buat nentuin kapan dia harus lari
+    // batesan jarak buat nentuin kapan dia mulai lari
     private final float RUN_DISTANCE_THRESHOLD = 5.0f;
 
     public BaseEnemy() { }
@@ -69,42 +75,47 @@ public abstract class BaseEnemy {
         if(isReadyToRemove) return;
         targetPos.set(playerPos);
         if(animController != null) animController.update(delta);
-        // Update State
+
+        // update logic state musuh sekarang lagi ngapain
         if(currentState != null) currentState.update(delta, playerPos, terrain, trees, allEnemies, playerStats);
-        // kalo mati kita serahin urusan posisi/rotasi ke DeathState sepenuhnya.
-        // BaseEnemy cuma ngurus transform kalo dia masih HIDUP.
+
+        // kalo musuh masih hidup dan gak diatur manual posisinya sama dajjal
+        // base enemy yang ngurus posisi dan rotasinya
         if (!isDead && !manualTransform) {
             if(!isRising) position.y = terrain.getHeight(position.x, position.z);
             modelInstance.transform.setToTranslation(position);
             rotateTowardsPlayer();
             modelInstance.transform.scale(BODY_SCALE, BODY_SCALE, BODY_SCALE);
         }
-        // Logika kedip merah
+
+        // logika buat balikin warna jadi normal abis kedip merah
         if (hitFlashTimer > 0) {
             hitFlashTimer -= delta;
             if (hitFlashTimer <= 0) setColor(Color.WHITE);
         }
     }
 
-    // kena damage
+    // method pas musuh kena damage
     public void takeDamage(float amount, Terrain terrain){
         if (isDead || isRising) return;
         health -= amount;
-        // set warna jadi merah
+
+        // ubah warna jadi merah sebentar
         setColor(Color.RED);
-        hitFlashTimer = 0.1f; // kedip merah selama 0.1 detik
-        // Cek Mati
+        hitFlashTimer = 0.1f; // durasi kedip merah 0.1 detik
+
+        // cek kalo darah abis berarti mati
         if(health <= 0){
             health = 0;
             isDead = true;
-            setColor(Color.WHITE); // Reset warna merah
-            switchState(new DeathState(), terrain); // Masuk animasi mati
+            setColor(Color.WHITE); // balikin warna normal
+            switchState(new DeathState(), terrain); // masuk ke animasi mati
         }
     }
 
-    // method helper buat ganti warna material model
+    // method bantu buat ganti warna model musuh
     private void setColor(Color color){
-        // ubah warna Diffuse (warna dasar) semua material di model ini
+        // loop semua material di model terus ganti warna dasarnya
         for(Material mat : modelInstance.materials){
             ColorAttribute attrib = (ColorAttribute) mat.get(ColorAttribute.Diffuse);
             if(attrib != null) attrib.color.set(color);
@@ -114,17 +125,18 @@ public abstract class BaseEnemy {
     private void die(){
         isDead = true;
         setColor(Color.WHITE);
-        // animController.animate("death", 1, 1f, null, 0.2f);
-        // kalo gak ada animasi mati lempar dia ke bawah tanah atau ilangin
-        position.y -= 1000f; // cara kasar ngilangin mayat :v
+        // cara kasar ngilangin mayat dilempar ke bawah tanah
+        position.y -= 1000f;
     }
 
     private void rotateTowardsPlayer(){
         float dx = targetPos.x - position.x;
         float dz = targetPos.z - position.z;
-        // pake atan2 biar dapet sudut yang bener 360 derajat
+
+        // pake atan2 biar dapet sudut putar yang akurat 360 derajat
         float angleYaw = MathUtils.atan2(dx, dz) * MathUtils.radiansToDegrees;
-        // tambahin interpolasi dikit biar muternya alus gak patah patah banget opsional, tapi langsung set juga biar responsif
+
+        // simpen sudutnya dan langsung puter modelnya
         this.currentYaw = angleYaw;
         modelInstance.transform.rotate(Vector3.Y, angleYaw);
     }
@@ -134,13 +146,13 @@ public abstract class BaseEnemy {
         newState.enter(terrain);
     }
 
-    // bagain state machinenyaa
+    // struktur dasar state machine buat ngatur perilaku musuh
     public abstract class State {
         public abstract void enter(Terrain terrain);
         public abstract void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats);
     }
 
-    // state emerge pas muncul dari dalem tanah
+    // state pas musuh muncul pelan pelan dari dalem tanah
     public class EmergeState extends State {
         float finalY;
         float riseSpeed = 1.5f;
@@ -148,10 +160,10 @@ public abstract class BaseEnemy {
         @Override
         public void enter(Terrain terrain){
             isRising = true;
-            // animasi diem dulu pas lagi naik
+            // pas lagi naik animasinya diem dulu
             animController.setAnimation(ANIM_IDLE, -1, 1f, null);
             finalY = terrain.getHeight(position.x, position.z);
-            position.y = finalY - 2.5f; // mulai dari bawah tanah sedalam 2.5 meter
+            position.y = finalY - 2.5f; // mulai dari kedalaman 2.5 meter
         }
 
         @Override
@@ -165,121 +177,135 @@ public abstract class BaseEnemy {
         }
     }
 
-    // state chase pas lagi ngejar jalan vs lari
+    // state pas musuh ngejar player entah jalan atau lari
     public class ChaseState extends State {
 
-        // variabel buat track animasi yg lagi aktif biar gak set animasi terus terusan
+        // variabel buat nyatet animasi apa yang lagi jalan biar gak diset ulang terus
         private String currentAnim = "";
 
         @Override
         public void enter(Terrain terrain){
-            // awal masuk state paksa update logic di frame pertama
+            // reset pencatat animasi pas baru masuk state ini
             currentAnim = "";
         }
 
         @Override
         public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             float dist = position.dst(playerPos);
-            // cek jarak buat nyerang pake variabel attackRange dinamis
+
+            // cek kalo jarak udah cukup deket langsung serang
             if(dist < attackRange){
                 switchState(new AttackState(), terrain);
                 return;
             }
-            // logic buat nentuin jalan atau lari
+
+            // logika milih mau jalan santai atau lari ngebut
             float currentSpeed;
             String targetAnim;
             if(dist > RUN_DISTANCE_THRESHOLD){
-                // kalo jauh lari
+                // kalo jauh kita lari
                 currentSpeed = runSpeed;
                 targetAnim = ANIM_RUN;
             }else{
-                // kalo deket jalan santai aja
+                // kalo deket jalan biasa aja
                 currentSpeed = walkSpeed;
                 targetAnim = ANIM_WALK;
             }
-            // cuma ganti animasi kalo beda sama yg sekarang biar hemat performa
+
+            // ganti animasi cuma kalau beda sama yang sekarang biar hemat performa
             if(!currentAnim.equals(targetAnim)){
-                animController.animate(targetAnim, -1, 1f, null, 0.2f); // 0.2f blending biar transisi alus
+                animController.animate(targetAnim, -1, 1f, null, 0.2f); // pake blending dikit biar alus
                 currentAnim = targetAnim;
             }
-            // hitung vektor gerak pake steering behavior, vektor nuju ke arah player
+
+            // hitung arah gerak menuju player
             moveDirection.set(playerPos).sub(position).nor();
-            // vektor separation buat ngindar dari temennya
+
+            // hitung gaya tolak menolak biar gak numpuk sama temen
             calculateSeparation(activeEnemies);
-            // gabungin arah player tambah dorongan jauh dari temen kali bobot, bobot 1.5f itu dorongan ngejauh lebih prioritas dikit biar gak nempel banget
+
+            // gabungin arah ke player dan arah ngejauh dari temen
             moveDirection.add(separationForce.scl(1.5f));
-            // normalisasi lagi biar kecepatannya konsisten gak jadi super cepet
+
+            // normalisasi lagi biar kecepatannya stabil
             moveDirection.nor();
-            // terapkan gerakannya
+
+            // terapin pergerakannya
             float moveX = moveDirection.x * currentSpeed * delta;
             float moveZ = moveDirection.z * currentSpeed * delta;
-            // logika tabrak pohon tetep sama persis kyak sebelumnya
+
+            // logika deteksi tabrakan pohon
             float nextX = position.x + moveX;
             float nextZ = position.z + moveZ;
             boolean nabrak = false;
             float radiusEnemy = 0.5f;
             float radiusPohon = 0.8f;
             float jarakAmanKuadrat = (radiusEnemy + radiusPohon) * (radiusEnemy + radiusPohon);
+
             for(ModelInstance tree : trees){
-                tmpTreePos.set(0,0,0); // reset dulu biar aman
+                tmpTreePos.set(0,0,0); // reset vektor bantuan
                 tree.transform.getTranslation(tmpTreePos);
                 float dx = nextX - tmpTreePos.x;
                 float dz = nextZ - tmpTreePos.z;
+
                 if(dx*dx + dz*dz < jarakAmanKuadrat){
                     nabrak = true;
-                    // ambil garis normal, arah tegak lurus dari pohon ke musuh
+                    // hitung arah pantulan biar musuh geser ke samping pohon
                     collisionNormal.set(position).sub(tmpTreePos);
-                    collisionNormal.y = 0; // kita main di XZ plane aja
-                    collisionNormal.nor(); // normalisasi biar panjangnya 1
-                    // ini bikin vektornya jadi sejajar sama permukaan pohon
+                    collisionNormal.y = 0; // abaikan tinggi
+                    collisionNormal.nor();
+
+                    // bikin vektor geser sejajar permukaan pohon
                     slideDirection.set(collisionNormal).rotateRad(Vector3.Y, MathUtils.HALF_PI);
-                    if(slideDirection.dot(moveDirection) < 0) slideDirection.scl(-1); // kalo berlawanan kita balik arah slidenya biar tetep maju mendekati target
+
+                    // kalo arah gesernya malah ngejauh dari tujuan kita balik arahnya
+                    if(slideDirection.dot(moveDirection) < 0) slideDirection.scl(-1);
                     break;
                 }
             }
+
             if(!nabrak){
                 position.x += moveX;
                 position.z += moveZ;
             }else{
-                // kalo nabrak pake vektor slide
+                // kalo nabrak pohon kita geser nyamping
                 position.x += slideDirection.x * currentSpeed * delta;
                 position.z += slideDirection.z * currentSpeed * delta;
             }
         }
 
-        // method buat ngitung gaya tolak menolak
+        // method buat ngitung biar musuh gak dempet dempetan
         private void calculateSeparation(Array<BaseEnemy> neighbors){
-            separationForce.set(0, 0, 0); // reset
+            separationForce.set(0, 0, 0); // reset gaya
             int count = 0;
-            float separationRadius = 1.2f; // jarak personal space mereka jangan terlalu gede
+            float separationRadius = 1.2f; // jarak aman antar musuh
+
             for(BaseEnemy other : neighbors){
-                // jangan cek diri sendiri
+                // jangan ngitung jarak ke diri sendiri
                 if(other == BaseEnemy.this) continue;
-                // cek jarak ke musuh lain
+
+                // hitung jarak ke musuh lain
                 float d = position.dst(other.position);
-                // kalau terlalu deket kurang dari radius personal
+
+                // kalo terlalu deket kita bikin gaya tolak
                 if(d < separationRadius && d > 0){
-                    // hitung vektor menjauh posisi kita dikurang posisi dia
-//                    Vector3 push = new Vector3(position).sub(other.position);
-//                    push.nor(); // normalisasi biar jadi arah doang
-//                    push.scl(1.0f / d); // semakin deket dorongannya semakin kuat inverse distance
-//                    separationForce.add(push);
-                    // pake tmpSep buat hemat memori yg udah kita deklarasi di atas
+                    // pake vektor bantuan biar hemat memori
                     tmpSep.set(position);
                     tmpSep.sub(other.position);
-                    tmpSep.nor(); // normalisasi
-                    tmpSep.scl(1.0f / d); // scalingg
-                    // tambahin ke separationForce
+                    tmpSep.nor(); // jadiin arah doang
+                    tmpSep.scl(1.0f / d); // makin deket tolakannya makin kuat
+
+                    // kumpulin semua gaya tolaknya
                     separationForce.add(tmpSep);
                     count++;
                 }
             }
-            // rata rata gaya dorongnya
+            // ambil rata rata gaya tolaknya
             if(count > 0) separationForce.scl(1.0f / count);
         }
     }
 
-    // state attack pas lagi nyerang
+    // state pas musuh lagi nyerang player
     public class AttackState extends State {
         boolean hasDealtDamage = false;
         float timer = 0f;
@@ -294,12 +320,14 @@ public abstract class BaseEnemy {
         @Override
         public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             timer += delta;
-            // logika damage sederhana
+
+            // cek damage di tengah tengah animasi serangan
             if(timer > 0.4f && !hasDealtDamage){
                 float dist = position.dst(playerPos);
-                // cek lagi jaraknya pas pukul biar kalo player kabur gak kena
+
+                // pastiin player masih dalam jangkauan
                 if(dist <= attackRange + 0.5f){
-                    // kurangi darah player disini
+                    // kurangi darah player
                     if(playerStats != null) {
                         playerStats.takeDamage(damage);
                         System.out.println("Player kena pukul! Damage: " + damage);
@@ -307,59 +335,57 @@ public abstract class BaseEnemy {
                     hasDealtDamage = true;
                 }
             }
-            if(timer > 1.2f) switchState(new ChaseState(), terrain); // durasi animasi kelar
+            // kalo animasi kelar balik ngejar lagi
+            if(timer > 1.2f) switchState(new ChaseState(), terrain);
         }
     }
 
-    // Import Quaternion jangan lupa (biasanya udah auto import, kalo belum tambahin ini di atas: import com.badlogic.gdx.math.Quaternion;)
+    // state pas musuh mati
     public class DeathState extends State {
-        // Kita pake Quaternion biar nyimpen rotasinya AKURAT 100%
+        // variabel buat nyimpen rotasi biar mayatnya gak muter aneh
         private final com.badlogic.gdx.math.Quaternion savedRotation = new com.badlogic.gdx.math.Quaternion();
         private float savedYaw = 0f;
-        private float currentPitch = 0f; // Sudut rebahan
+        private float currentPitch = 0f; // sudut kemiringan rebahan
 
         @Override
         public void enter(Terrain terrain){
-            // 1. Matikan animasi jalan/lari, ganti idle atau pose mati
+            // ganti animasi jadi diem aja pas mati
             if(animController != null) animController.setAnimation(ANIM_IDLE, -1, 1f, null);
 
             this.savedYaw = BaseEnemy.this.currentYaw;
-            // Kita ambil rotasi persis saat dia mati, simpen di savedRotation
-//            modelInstance.transform.getRotation(savedRotation);
         }
 
         @Override
         public void update(float delta, Vector3 playerPos, Terrain terrain, Array<ModelInstance> trees, Array<BaseEnemy> activeEnemies, PlayerStats playerStats) {
             deathTimer += delta;
 
-            // FASE 1: REBAHAN (0 detik - 1 detik)
+            // fase satu rebahan ke belakang selama satu detik
             if (deathTimer < 1.0f) {
-                // Nambah sudut rebahan pelan-pelan sampe -90 derajat
-                // Interpolasi biar jatuhnya halus (makin lama makin cepet dikit)
+                // nambah sudut rebahan pelan pelan pake interpolasi
                 currentPitch = MathUtils.lerp(currentPitch, -90f, delta * 5f);
             }
-            // FASE 2: TENGGELAM (Setelah 1 detik)
+            // fase dua mayat tenggelam ke tanah
             else {
-                currentPitch = -90f; // Pastikan udah rebahan total
-                position.y -= 1.5f * delta; // Turun ke bawah tanah
+                currentPitch = -90f; // kunci posisi rebahan
+                position.y -= 1.5f * delta; // pelan pelan turun
             }
 
-            // --- PENERAPAN TRANSFORMASI MANUAL ---
-            // Karena di update() utama kita skip transform pas mati, kita harus susun manual di sini.
-            // Urutannya PENTING: Posisi -> Rotasi Asli -> Rotasi Rebahan -> Scale
+            // atur posisi dan rotasi mayat secara manual biar pas
             modelInstance.transform.idt();
-            // 2. Pindahin ke lokasi mayat (X, Y yg tenggelam, Z)
-            modelInstance.transform.translate(position);
-            // 3. Putar Y (Hadap ke arah player terakhir) - INI PENTING DULUAN
-            modelInstance.transform.rotate(Vector3.Y, savedYaw);
-            // 4. Putar X (Rebahan ke belakang)
-            // Karena Y udah diputar, X sekarang jadi "X Lokal" (samping kanan kiri musuh)
-            // Jadi dia bakal rebahan ke belakang punggungnya sendiri
-            modelInstance.transform.rotate(Vector3.X, currentPitch);
-            // 5. Kembalikan ukuran
-            modelInstance.transform.scale(BODY_SCALE, BODY_SCALE, BODY_SCALE); // 4. Balikin ukurannya
 
-            // FASE 3: HAPUS (Setelah 3 detik)
+            // pindahin ke lokasi terakhir
+            modelInstance.transform.translate(position);
+
+            // hadapkan ke arah terakhir dia liat
+            modelInstance.transform.rotate(Vector3.Y, savedYaw);
+
+            // baringkan badan ke belakang
+            modelInstance.transform.rotate(Vector3.X, currentPitch);
+
+            // balikin ukurannya biar gak berubah
+            modelInstance.transform.scale(BODY_SCALE, BODY_SCALE, BODY_SCALE);
+
+            // fase tiga hapus dari game setelah tiga detik
             if (deathTimer > 3.0f) {
                 isReadyToRemove = true;
             }

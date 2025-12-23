@@ -17,34 +17,34 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
-import com.finpro7.oop.world.weapon.Firearm;
-import com.finpro7.oop.world.weapon.WeaponMod;
+
+import com.finpro7.oop.world.weapon.AkRifle;
 
 public class Main extends Game {
 
     public static Skin skin;
     public AssetManager assets;
 
-    public static com.finpro7.oop.world.weapon.AkRifle.Template autoRifleTemplate;
-    public static com.badlogic.gdx.graphics.g3d.Model weaponsModel;
+    // var buat template senjata biar bisa diakses global
+    public static AkRifle.Template autoRifleTemplate;
+    public static Model weaponsModel;
 
-    // Palet warna tema game
+    // palet warna tema game
     private final Color COLOR_GOLD = new Color(1f, 0.84f, 0.0f, 1f);
-    private final Color COLOR_BLOOD = new Color(0.9f, 0.1f, 0.1f, 1f);
 
     @Override
     public void create() {
         assets = new AssetManager();
         createStyle();
         loadAssets();
-        // Ambil modelnya dulu dari assets
+        // ambil modelnya dulu dari assets
         weaponsModel = assets.get("models/weapons.g3db", Model.class);
 
         autoRifleTemplate = new com.finpro7.oop.world.weapon.AkRifle.Template(
             new ModelInstance(weaponsModel),
             new Vector3(0, 0, 0)
         );
-        // Langsung masuk ke LoginScreen saat aplikasi dibuka
+        // langsung masuk ke loginscreen saat aplikasi dibuka
         this.setScreen(new LoginScreen(this));
     }
 
@@ -62,7 +62,7 @@ public class Main extends Game {
     private void createStyle() {
         skin = new Skin();
 
-        // --- FONT SETUP ---
+        // font setup
         BitmapFont fontTitle = new BitmapFont();
         fontTitle.getData().setScale(4.0f);
         skin.add("font-title", fontTitle);
@@ -76,7 +76,7 @@ public class Main extends Game {
         fontSmall.getData().setScale(1.2f);
         skin.add("font-small", fontSmall);
 
-        // --- TEXTURE SETUP ---
+        // texture setup
         Pixmap p = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         p.setColor(Color.WHITE);
         p.fill();
@@ -84,12 +84,12 @@ public class Main extends Game {
         skin.add("white", whiteTex);
         p.dispose();
 
-        // Drawable
+        // drawable
         TextureRegionDrawable whiteDrawable = new TextureRegionDrawable(new TextureRegion(whiteTex));
         Drawable dimDrawable = whiteDrawable.tint(new Color(0f, 0f, 0f, 0.85f));
         skin.add("dim-overlay", dimDrawable);
 
-        // --- LABEL STYLES ---
+        // label styles
         Label.LabelStyle titleStyle = new Label.LabelStyle(fontTitle, COLOR_GOLD);
         skin.add("title", titleStyle);
 
@@ -107,7 +107,7 @@ public class Main extends Game {
 
         skin.add("default", new Label.LabelStyle(fontButton, Color.WHITE));
 
-        // --- BUTTON STYLES ---
+        // button styles
         TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
         btnStyle.font = fontButton;
         btnStyle.up = whiteDrawable.tint(new Color(0.1f, 0.1f, 0.1f, 0.6f));
@@ -118,18 +118,18 @@ public class Main extends Game {
         skin.add("btn-main", btnStyle);
         skin.add("default", btnStyle);
 
-        // --- WINDOW STYLE ---
+        // window style
         Window.WindowStyle windowStyle = new Window.WindowStyle();
         windowStyle.background = dimDrawable;
         windowStyle.titleFont = fontTitle;
         windowStyle.titleFontColor = COLOR_GOLD;
         skin.add("default", windowStyle);
 
-        // --- TEXTFIELD STYLE (Wajib buat Login) ---
+        // textfield style buat login
         TextField.TextFieldStyle tfStyle = new TextField.TextFieldStyle();
         tfStyle.font = fontSmall;
         tfStyle.fontColor = Color.WHITE;
-        tfStyle.background = whiteDrawable.tint(new Color(0.2f, 0.2f, 0.2f, 0.8f)); // Background abu gelap
+        tfStyle.background = whiteDrawable.tint(new Color(0.2f, 0.2f, 0.2f, 0.8f)); // background abu gelap
         tfStyle.cursor = whiteDrawable.tint(COLOR_GOLD);
         tfStyle.selection = whiteDrawable.tint(Color.BLUE);
         skin.add("default", tfStyle);
@@ -137,7 +137,7 @@ public class Main extends Game {
 
     private void loadAssets(){
 
-        // --- LOAD MODELS ---
+        // load models
         assets.load("models/pohon.g3dj", Model.class);
         assets.load("models/dajjal.g3db", Model.class);
         assets.load("models/majuj/majuj.g3db", Model.class);
@@ -145,7 +145,7 @@ public class Main extends Game {
         assets.load("models/medkit.g3db", Model.class);
         assets.load("models/ammo.g3db", Model.class);
 
-        // --- LOAD TEXTURES ---
+        // load textures
         assets.load("textures/batang_pohon.png", Texture.class);
         assets.load("textures/daun_pohon.png", Texture.class);
 
@@ -167,7 +167,7 @@ public class Main extends Game {
         assets.load("models/weapons.g3db", Model.class);
         assets.load("textures/crosshair.png", Texture.class);
 
-        // Finish Loading (Blocking sampai semua ke-load)
+        // finish loading blocking sampai semua ke load
         assets.finishLoading();
     }
 }

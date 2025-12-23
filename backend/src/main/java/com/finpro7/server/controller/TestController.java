@@ -10,4 +10,9 @@ public class TestController {
     public String cekStatus() {
         return "Backend Aman! Server jalan.";
     }
+
+    @GetMapping("/ping")
+    public String ping() {
+        return "ok";
+    }
 }

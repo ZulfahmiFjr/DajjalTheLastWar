@@ -270,16 +270,20 @@ public class PlayerController {
     }
 
     // cek dulu nih nabrak pohon apa enggak
-    private boolean cekNabrakPohon(float x, float z, Array<ModelInstance> treeInstances) {
+    // tapi sekarang method ini jadi enteng banget soalnya list pohonnya udah disaring
+    private boolean cekNabrakPohon(float x, float z, Array<ModelInstance> treesToCheck) {
         float radiusPlayer = 0.5f;
         float radiusPohon = 0.8f;
         float jarakMinimal = radiusPlayer + radiusPohon;
         float jarakMinimalKuadrat = jarakMinimal * jarakMinimal;
 
-        for (ModelInstance tree : treeInstances) {
+        // loopnya cuma ngecek pohon yang deket deket aja
+        for (ModelInstance tree : treesToCheck) {
             tree.transform.getTranslation(tempPos);
             float dx = x - tempPos.x;
             float dz = z - tempPos.z;
+
+            // cek jarak pake kuadrat biar gak usah ngakar, lebih cepet itungannya
             if (dx * dx + dz * dz < jarakMinimalKuadrat) return true;
         }
         return false;

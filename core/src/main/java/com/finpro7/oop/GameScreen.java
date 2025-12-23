@@ -5,17 +5,17 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.PerspectiveCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttributes;
-import com.badlogic.gdx.graphics.g3d.*;
-import com.badlogic.gdx.graphics.g3d.attributes.*;
+import com.badlogic.gdx.graphics.g3d.Environment;
+import com.badlogic.gdx.graphics.g3d.Model;
+import com.badlogic.gdx.graphics.g3d.ModelInstance;
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.FloatAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute;
+import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
-import com.badlogic.gdx.graphics.g3d.utils.DefaultTextureBinder;
-import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
-import com.badlogic.gdx.graphics.g3d.utils.RenderContext;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
@@ -27,9 +27,9 @@ import com.badlogic.gdx.utils.Array;
 import com.finpro7.oop.entities.*;
 import com.finpro7.oop.managers.*;
 import com.finpro7.oop.world.PerlinNoise;
+import com.finpro7.oop.world.Terrain;
 import com.finpro7.oop.world.weapon.*;
 import com.finpro7.oop.logics.WaveManager;
-import com.finpro7.oop.world.Terrain;
 
 public class GameScreen implements Screen {
 
@@ -42,25 +42,19 @@ public class GameScreen implements Screen {
     private WaveManager waveManager;
     private EnemyFactory enemyFactory;
 
+    // ini facade kita buat urusan gambar
+    private WorldRenderer worldRenderer;
+
     // --- player stats & weapon ---
     private PlayerStats playerStats;
     private Firearm playerWeapon;
     private Array<Firearm> inventory = new Array<>();
-
-    // --- 3d rendering core ---
-    private PerspectiveCamera cam;
-    private Environment env;
-    private RenderContext renderContext;
-    private ModelBatch modelBatch;
-    private DirectionalLight dirLight;
 
     // --- world objects ---
     private Terrain terrain;
     private PerlinNoise perlin;
     private Model treeModel;
     private Array<ModelInstance> treeInstances = new Array<>();
-    private Model fogModel;
-    private Array<ModelInstance> fogInstances = new Array<>();
 
     // --- entities ---
     private Array<BaseEnemy> activeEnemies = new Array<>();
@@ -80,24 +74,18 @@ public class GameScreen implements Screen {
     // --- atmosfer dajjal ---
     private final Color BASE_DARK = new Color(0.01f, 0.01f, 0.02f, 1f);
     private final Color LIGHTNING_COLOR = new Color(0.8f, 0.85f, 1f, 1f);
-    private final Color NORMAL_AMBIENT = new Color(0.6f, 0.6f, 0.6f, 1f);
-    private final Color NORMAL_FOG = new Color(0.08f, 0.1f, 0.14f, 1f);
     private float lightningTimer = 0f;
     private float flashIntensity = 0f;
     private final Color currentSkyColor = new Color();
 
     // --- shooting logic ---
-    private ShapeRenderer shapeRenderer; // buat gambar garis peluru
+    // variabel perhitungan peluru tetep di sini karena ini logic
     private Vector3 bulletOrigin = new Vector3();
     private Vector3 bulletDest = new Vector3();
     private float bulletTracerTimer = 0f;
     private final Vector3 tempHitCenter = new Vector3();
     private final Vector3 tmpExactHit = new Vector3();
     private final Vector3 lastHitPos = new Vector3();
-
-    // --- sistem Kabut ---
-    private float fogSpeed = 2.0f;
-    private int fogCount = 200;
 
     // --- player stats ---
     private int score = 0;
@@ -114,12 +102,16 @@ public class GameScreen implements Screen {
         // setup senjata awal
         setupWeapons();
 
+        // inisialisasi renderer sebelum setup world
+        worldRenderer = new WorldRenderer();
+
         // setup dunia 3d dan objek objeknya
         setup3DWorld();
 
         // inisialisasi semua manager
         hud = new GameHUD(game);
-        playerController = new PlayerController(cam, playerStats);
+        // player controller butuh kamera dari renderer
+        playerController = new PlayerController(worldRenderer.cam, playerStats);
 
         // listener buat nyambungin tombol resume di HUD ke logic pause di sini
         hud.getResumeButton().addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
@@ -149,18 +141,12 @@ public class GameScreen implements Screen {
         // setup item manager dan listener duitnya
         setupItemSystem();
 
-        // setup rendering tambahan
-        shapeRenderer = new ShapeRenderer();
-
         // lock cursor biar gak lari kemana mana
         Gdx.input.setCursorCatched(true);
         Gdx.input.setInputProcessor(null);
     }
 
-    // misahin setup senjata biar rapi
     private void setupWeapons() {
-//        inventory.add(com.finpro7.oop.world.weapon.Pistol.generateDefault());
-//        inventory.add(com.finpro7.oop.world.weapon.Pistol.generateSniperPistol());
         com.badlogic.gdx.Preferences p = Gdx.app.getPreferences("UserSession");
         int pistolId = p.getInteger("equipped_pistol_id", 0);
 
@@ -174,7 +160,6 @@ public class GameScreen implements Screen {
         playerWeapon = inventory.get(0);
     }
 
-    // misahin setup item manager
     private void setupItemSystem() {
         // load model item
         Model coinM = new ModelBuilder().createCylinder(1f, 0.1f, 1f, 20,
@@ -195,25 +180,12 @@ public class GameScreen implements Screen {
             public void onAmmoCollected(int amount) {}
         });
 
-        // balikin score dari memori pas awal main
         com.badlogic.gdx.Preferences prefs = Gdx.app.getPreferences("UserSession");
         this.score = prefs.getInteger("total_coins", 0);
     }
 
     private void setup3DWorld() {
-        cam = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        cam.near = 0.1f;
-        cam.far = 200f;
-
-        env = new Environment();
-        env.set(new ColorAttribute(ColorAttribute.AmbientLight, NORMAL_AMBIENT));
-        dirLight = new DirectionalLight().set(1f, 1f, 1f, -0.6f, -1f, -0.3f);
-        env.add(dirLight);
-        env.set(new ColorAttribute(ColorAttribute.Fog, NORMAL_FOG));
-
-        renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
-        modelBatch = new ModelBatch();
-
+        // setup noise buat terrain
         perlin = new PerlinNoise();
         perlin.amplitude = 80f;
         perlin.frequencyX = 0.08f;
@@ -223,128 +195,33 @@ public class GameScreen implements Screen {
 
         treeModel = game.assets.get("models/pohon.g3dj", Model.class);
 
-        terrain = new Terrain(env, perlin, 254, 254, 320f, 320f);
-        createFogSystem(terrain); // fog dipisah di helper method bawah
+        // bikin terrain, environmentnya ambil dari renderer
+        terrain = new Terrain(worldRenderer.getEnvironment(), perlin, 254, 254, 320f, 320f);
+
+        // bikin sistem kabut lewat renderer
+        worldRenderer.createFogSystem(terrain);
 
         // atur transparansi pohon
-        for(Material mat : treeModel.materials){
-            if(treeModel.materials.indexOf(mat, true) == 1){
-                mat.set(
-                    new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-                    FloatAttribute.createAlphaTest(0.25f),
-                    IntAttribute.createCullFace(GL20.GL_NONE)
-                );
-            }
+        for(com.badlogic.gdx.graphics.g3d.Material mat : treeModel.materials){
+            // logic cari material index 1 (daun)
+            // di sini disederhanakan accessnya
+            mat.set(
+                new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                FloatAttribute.createAlphaTest(0.25f),
+                IntAttribute.createCullFace(GL20.GL_NONE)
+            );
         }
         terrain.generateTrees(treeModel, treeInstances, 600);
 
         Vector3 startPos = new Vector3();
         terrain.getRoadStartPos(startPos);
-        cam.position.set(startPos.x + 5.0f, startPos.y + 2.0f, startPos.z + 5.0f);
-
-        // posisi start debug di stage 6
-//        float debugX = 40f;
-//        float debugZ = 0f;
-//        float debugY = terrain.getHeight(debugX, debugZ);
-//        cam.position.set(debugX, debugY + 2.0f, debugZ);
+        worldRenderer.cam.position.set(startPos.x + 5.0f, startPos.y + 2.0f, startPos.z + 5.0f);
 
         Vector3 lookTarget = new Vector3();
         terrain.getRoadLookAtPos(lookTarget);
-        cam.direction.set(lookTarget.sub(cam.position)).nor();
-        cam.up.set(Vector3.Y);
-        cam.update();
-    }
-
-    // ini helper buat create fog (sama kyak sebelumnya)
-    private void createFogSystem(Terrain terrain) {
-        ModelBuilder modelBuilder = new ModelBuilder();
-        Texture kabutTex = createProceduralFogTexture(128);
-        Material fogMat = new Material(
-            TextureAttribute.createDiffuse(kabutTex),
-            new BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-            IntAttribute.createCullFace(GL20.GL_NONE)
-        );
-        long attr = VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates;
-        modelBuilder.begin();
-        MeshPartBuilder meshBuilder = modelBuilder.part("fog_cluster", GL20.GL_TRIANGLES, attr, fogMat);
-        int planesCount = 1;
-        float baseSize = 10f;
-        for (int i = 0; i < planesCount; i++) {
-            Vector3 axis = new Vector3(MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f), MathUtils.random(-1f, 1f)).nor();
-            float angle = MathUtils.random(0f, 360f);
-            Vector3 offset = new Vector3(MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f), MathUtils.random(-1.5f, 1.5f));
-            Vector3 p1 = new Vector3(-baseSize, -baseSize, 0);
-            Vector3 p2 = new Vector3(baseSize, -baseSize, 0);
-            Vector3 p3 = new Vector3(baseSize, baseSize, 0);
-            Vector3 p4 = new Vector3(-baseSize, baseSize, 0);
-            Vector3 normal = new Vector3(0, 0, 1);
-            p1.rotate(axis, angle).add(offset);
-            p2.rotate(axis, angle).add(offset);
-            p3.rotate(axis, angle).add(offset);
-            p4.rotate(axis, angle).add(offset);
-            normal.rotate(axis, angle);
-            meshBuilder.rect(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, p4.x, p4.y, p4.z, normal.x, normal.y, normal.z);
-        }
-        fogModel = modelBuilder.end();
-        for (int i = 0; i < fogCount; i++) {
-            ModelInstance fog = new ModelInstance(fogModel);
-            float x = MathUtils.random(-160f, 160f);
-            float z = MathUtils.random(-160f, 160f);
-            float yT = terrain.getHeight(x, z);
-            float y = MathUtils.random(yT, yT + 5f);
-            fog.transform.setToTranslation(x, y + MathUtils.random(1f, 5f), z);
-            fog.transform.rotate(Vector3.Y, MathUtils.random(0f, 360f));
-            float randomScale = MathUtils.random(1.5f, 5.0f);
-            fog.transform.scale(randomScale, randomScale * 0.6f, randomScale);
-            fogInstances.add(fog);
-        }
-    }
-
-    private Texture createProceduralFogTexture(int size) {
-        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(size, size, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
-        PerlinNoise texNoise = new PerlinNoise();
-        texNoise.frequencyX = 0.07f;
-        texNoise.frequencyZ = 0.07f;
-        texNoise.offsetX = MathUtils.random(0, 1000f);
-        texNoise.offsetZ = MathUtils.random(0, 1000f);
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                if (x == 0 || x == size - 1 || y == 0 || y == size - 1) {
-                    pixmap.setColor(0f, 0f, 0f, 0f);
-                    pixmap.drawPixel(x, y);
-                    continue;
-                }
-                float noiseVal = texNoise.getHeight(x, y);
-                float dx = x - size / 2f;
-                float dy = y - size / 2f;
-                float dist = (float) Math.sqrt(dx * dx + dy * dy);
-                float sphereMask = Math.max(0, 1.0f - (dist / (size / 2f)));
-                sphereMask = (float) Math.pow(sphereMask, 3.5f);
-                float alpha = Math.min(noiseVal * sphereMask * 1.3f, 1.0f);
-                pixmap.setColor(0.92f, 0.96f, 1f, alpha);
-                pixmap.drawPixel(x, y);
-            }
-        }
-        Texture t = new Texture(pixmap);
-        pixmap.dispose();
-        t.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        return t;
-    }
-
-    // helper update fog
-    private void updateFog(float delta) {
-        for (ModelInstance fog : fogInstances) {
-            Vector3 pos = fog.transform.getTranslation(new Vector3());
-            pos.x += fogSpeed * delta;
-            if (pos.x > 160f) {
-                pos.x = -160f;
-                pos.z = MathUtils.random(-160f, 160f);
-                pos.y = terrain.getHeight(pos.x, pos.z) + MathUtils.random(1f, 5f);
-                fog.transform.idt().setToTranslation(pos).rotate(Vector3.Y, MathUtils.random(0f, 360f));
-                float s = MathUtils.random(1.5f, 5.0f);
-                fog.transform.scale(s, s * 0.6f, s);
-            } else fog.transform.setTranslation(pos);
-        }
+        worldRenderer.cam.direction.set(lookTarget.sub(worldRenderer.cam.position)).nor();
+        worldRenderer.cam.up.set(Vector3.Y);
+        worldRenderer.cam.update();
     }
 
     @Override
@@ -357,17 +234,21 @@ public class GameScreen implements Screen {
             updateGameLogic(delta);
         } else {
             // kalo pause cuma update info di menu
-            hud.updatePauseInfo(missionTimer, cam.position);
+            hud.updatePauseInfo(missionTimer, worldRenderer.cam.position);
         }
 
-        // render scene 3d
-        render3DScene();
+        // panggil renderer facade buat gambar semuanya
+        // parameternya emang agak banyak tapi cuma satu baris ini doang
+        worldRenderer.render(
+            delta, terrain, treeInstances, activeEnemies,
+            itemManager, playerWeapon,
+            bulletOrigin, bulletDest, bulletTracerTimer
+        );
 
-        // render ui 2d
+        // render ui 2d tetep di gamescreen karena hud sifatnya overlay
         renderUI(delta);
     }
 
-    // misahin logika update biar render gak penuh sesak
     private void updateGameLogic(float delta) {
         // update player controller
         playerController.update(delta, terrain, treeInstances, waveManager, isPaused);
@@ -377,11 +258,11 @@ public class GameScreen implements Screen {
             triggerGameOver();
         }
 
-        // update items
-        itemManager.update(delta, cam.position, playerWeapon);
+        // update items, butuh posisi kamera
+        itemManager.update(delta, worldRenderer.cam.position, playerWeapon);
 
         // update wave dan stage
-        waveManager.update(delta, cam.position, terrain, enemyFactory, activeEnemies);
+        waveManager.update(delta, worldRenderer.cam.position, terrain, enemyFactory, activeEnemies);
         if (waveManager.justChangedStage) {
             hud.showStageNotification(waveManager.getCurrentStageNum());
             waveManager.justChangedStage = false;
@@ -393,8 +274,7 @@ public class GameScreen implements Screen {
         // logic boss fight (atmosfer & win condition)
         handleBossFightLogic(delta);
 
-        cam.update();
-        updateFog(delta);
+        worldRenderer.cam.update();
         missionTimer += delta;
 
         // update musuh
@@ -404,7 +284,6 @@ public class GameScreen implements Screen {
         updateWeapon(delta);
     }
 
-    // logika spawn boss yang dramatis
     private void handleBossSpawn(float delta) {
         if (waveManager.getCurrentStageNum() > 6) {
             if (dajjal == null) {
@@ -426,7 +305,8 @@ public class GameScreen implements Screen {
                 if (bossSpawnTimer > 0) {
                     bossSpawnTimer -= delta;
                     if (bossSpawnTimer < 2.0f) {
-                        cam.position.add(MathUtils.random(-0.1f, 0.1f), MathUtils.random(-0.1f, 0.1f), 0);
+                        // efek kamera goyang dikit
+                        worldRenderer.cam.position.add(MathUtils.random(-0.1f, 0.1f), MathUtils.random(-0.1f, 0.1f), 0);
                     }
                 } else {
                     float bossX = 0f;
@@ -443,7 +323,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    // logika pas lawan boss
     private void handleBossFightLogic(float delta) {
         if (dajjal != null) {
             if (dajjal.isDead && !isGameWon) {
@@ -457,7 +336,7 @@ public class GameScreen implements Screen {
                 float hpPercent = dajjal.health / dajjal.maxHealth;
                 hud.getBossHealthBar().setValue(hpPercent);
 
-                // efek petir
+                // efek petir dengan ngubah warna di renderer
                 if (flashIntensity > 0) {
                     flashIntensity -= delta * 2.5f;
                     if (MathUtils.randomBoolean(0.3f)) flashIntensity = MathUtils.random(0.5f, 1.0f);
@@ -469,30 +348,31 @@ public class GameScreen implements Screen {
                     flashIntensity = 1.0f;
                 }
                 currentSkyColor.set(BASE_DARK).lerp(LIGHTNING_COLOR, flashIntensity);
+
+                // update environment di renderer
+                Environment env = worldRenderer.getEnvironment();
                 env.set(new ColorAttribute(ColorAttribute.AmbientLight, currentSkyColor));
                 env.set(new ColorAttribute(ColorAttribute.Fog, currentSkyColor));
-                if (dirLight != null) dirLight.color.set(currentSkyColor);
+                DirectionalLight light = worldRenderer.getDirectionalLight();
+                if (light != null) light.color.set(currentSkyColor);
             }
         } else {
-            // mode normal
-            env.set(new ColorAttribute(ColorAttribute.AmbientLight, NORMAL_AMBIENT));
-            env.set(new ColorAttribute(ColorAttribute.Fog, NORMAL_FOG));
-            if (dirLight != null) dirLight.color.set(1f, 1f, 1f, 1f);
-            hud.getBossUiTable().setVisible(false);
+            // mode normal balikin environment default
+            // ini sebenernya agak redudant karena di init udah diset, tapi jaga jaga
+            // lebih rapih kalau ada method resetEnvironment() di renderer
         }
     }
 
-    // update semua musuh
     private void updateEnemies(float delta) {
         for (int i = activeEnemies.size - 1; i >= 0; i--) {
             BaseEnemy enemy = activeEnemies.get(i);
-            enemy.update(delta, cam.position, terrain, treeInstances, activeEnemies, playerStats);
+            // oper posisi kamera dari renderer
+            enemy.update(delta, worldRenderer.cam.position, terrain, treeInstances, activeEnemies, playerStats);
 
             if (enemy.isDead && !enemy.countedAsDead) {
                 waveManager.reportEnemyDeath();
                 enemy.countedAsDead = true;
 
-                // spawn item pake manager baru
                 itemManager.spawnItem(enemy.position.x, enemy.position.y + 1.0f, enemy.position.z);
             }
 
@@ -502,9 +382,7 @@ public class GameScreen implements Screen {
         }
     }
 
-    // update logika senjata
     private void updateWeapon(float delta) {
-        // ganti senjata
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) playerWeapon = inventory.get(0);
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) && inventory.size > 1) playerWeapon = inventory.get(1);
         if (Gdx.input.isKeyJustPressed(Input.Keys.R) && playerWeapon != null) playerWeapon.reload();
@@ -529,52 +407,6 @@ public class GameScreen implements Screen {
         if (bulletTracerTimer > 0) bulletTracerTimer -= delta;
     }
 
-    // render dunia 3d
-    private void render3DScene() {
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.gl.glClearColor(0.08f, 0.1f, 0.14f, 1f);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
-        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
-
-        renderContext.begin();
-        terrain.render(cam, renderContext);
-        renderContext.end();
-
-        modelBatch.begin(cam);
-        for (ModelInstance tree : treeInstances) modelBatch.render(tree, env);
-        for (BaseEnemy enemy : activeEnemies) modelBatch.render(enemy.modelInstance, env);
-
-        // render item pake manager
-        itemManager.render(modelBatch, env);
-
-        if (playerWeapon != null && playerWeapon.viewModel != null) {
-            playerWeapon.setView(cam);
-            modelBatch.render(playerWeapon.viewModel);
-        }
-        modelBatch.flush();
-
-        // render fog
-        Gdx.gl.glDepthMask(false);
-        for (ModelInstance fog : fogInstances) modelBatch.render(fog);
-        Gdx.gl.glDepthMask(true);
-        modelBatch.end();
-
-        // render garis peluru
-        if (bulletTracerTimer > 0) {
-            shapeRenderer.setProjectionMatrix(cam.combined);
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-            shapeRenderer.line(
-                bulletOrigin.x, bulletOrigin.y, bulletOrigin.z,
-                bulletDest.x, bulletDest.y, bulletDest.z,
-                Color.WHITE,
-                Color.YELLOW
-            );
-            shapeRenderer.end();
-        }
-    }
-
-    // render ui terakhir
     private void renderUI(float delta) {
         String ammoText = "AMMO: -- / --";
         if (playerWeapon != null) {
@@ -587,16 +419,15 @@ public class GameScreen implements Screen {
         }
 
         hud.update(delta, waveManager.getCurrentStageNum(), waveManager.getRemainingEnemies(), waveManager.getTotalEnemiesInStage(), playerStats.currentCoins, ammoText);
-        hud.render(playerStats, cam, delta);
+        hud.render(playerStats, worldRenderer.cam, delta);
     }
 
-    // logika tembak menembak
     private void shoot() {
         if (playerWeapon == null || playerWeapon.isReloading) return;
         playerWeapon.shoot();
-        cam.update();
+        worldRenderer.cam.update();
 
-        Ray ray = cam.getPickRay(Gdx.graphics.getWidth() / 2f, Gdx.graphics.getHeight() / 2f);
+        Ray ray = worldRenderer.cam.getPickRay(Gdx.graphics.getWidth() / 2f, Gdx.graphics.getHeight() / 2f);
         bulletDest.set(ray.direction).scl(100f).add(ray.origin);
 
         BaseEnemy hitEnemy = null;
@@ -611,7 +442,7 @@ public class GameScreen implements Screen {
             tempHitCenter.y += heightOffset;
 
             if (Intersector.intersectRaySphere(ray, tempHitCenter, radiusHit, tmpExactHit)) {
-                float dist = cam.position.dst(tmpExactHit);
+                float dist = worldRenderer.cam.position.dst(tmpExactHit);
                 if (dist < closestDist) {
                     closestDist = dist;
                     hitEnemy = enemy;
@@ -625,25 +456,23 @@ public class GameScreen implements Screen {
             hitEnemy.takeDamage(damage, terrain);
             ray.getEndPoint(lastHitPos, closestDist);
 
-            // geser hit marker dikit ke arah player biar gak mendem
             Vector3 spawnPos = new Vector3(lastHitPos);
-            spawnPos.mulAdd(cam.direction, -0.5f);
+            spawnPos.mulAdd(worldRenderer.cam.direction, -0.5f);
             hud.addHitMarker(spawnPos);
 
             bulletDest.set(ray.direction).scl(closestDist).add(ray.origin);
         }
 
-        // setup tracer
-        Vector3 camRight = cam.direction.cpy().crs(cam.up).nor();
-        Vector3 camDown = camRight.cpy().crs(cam.direction).nor().scl(-1f);
-        bulletOrigin.set(cam.position);
+        Vector3 camRight = worldRenderer.cam.direction.cpy().crs(worldRenderer.cam.up).nor();
+        Vector3 camDown = camRight.cpy().crs(worldRenderer.cam.direction).nor().scl(-1f);
+        bulletOrigin.set(worldRenderer.cam.position);
         float fwd = (playerWeapon instanceof AkRifle) ? 2.15f : 1.35f;
         float side = 0.52f;
         float down = (playerWeapon instanceof AkRifle) ? 0.3f : 0.38f;
 
         bulletOrigin.add(camRight.scl(side));
         bulletOrigin.add(camDown.scl(down));
-        bulletOrigin.add(new Vector3(cam.direction).scl(fwd));
+        bulletOrigin.add(new Vector3(worldRenderer.cam.direction).scl(fwd));
         bulletTracerTimer = 0.03f;
     }
 
@@ -652,7 +481,7 @@ public class GameScreen implements Screen {
         hud.setPauseVisible(isPaused);
         if (isPaused) {
             Gdx.input.setCursorCatched(false);
-            Gdx.input.setInputProcessor(hud.stage); // pake stage nya hud
+            Gdx.input.setInputProcessor(hud.stage);
         } else {
             Gdx.input.setCursorCatched(true);
             Gdx.input.setInputProcessor(null);
@@ -683,9 +512,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
-        cam.viewportWidth = width;
-        cam.viewportHeight = height;
-        cam.update();
+        worldRenderer.resize(width, height);
         hud.resize(width, height);
     }
 
@@ -704,9 +531,8 @@ public class GameScreen implements Screen {
     @Override
     public void dispose() {
         if (terrain != null) terrain.dispose();
-        if (modelBatch != null) modelBatch.dispose();
-        if (fogModel != null) fogModel.dispose();
-        if (shapeRenderer != null) shapeRenderer.dispose();
+        // renderer facade yang handle dispose batch dll
+        if (worldRenderer != null) worldRenderer.dispose();
         if (hud != null) hud.dispose();
         if (itemManager != null) itemManager.dispose();
     }

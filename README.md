@@ -1,7 +1,16 @@
-# 👁️ Dajjal: The Last War 🏔️
-![picture dajjal](https://raw.githubusercontent.com/imhotepes/ProgDas/main/caches/6657f8e1436d0638ba11a780410e13da6ff614df0183f3907f56ca30b0c132c6.png)
+<h1 align="center">👁️ Dajjal: The Last War 🏔️</h1>
 
-![Java](https://img.shields.io/badge/Language-Java-orange) ![Framework](https://img.shields.io/badge/Framework-LibGDX-red) ![Backend](https://img.shields.io/badge/Backend-SpringBoot-green) ![Platform](https://img.shields.io/badge/Platform-Desktop%20%7C%20Web-lightgrey) ![Status](https://img.shields.io/badge/Status-In%20Development-blue)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/imhotepes/ProgDas/main/caches/6657f8e1436d0638ba11a780410e13da6ff614df0183f3907f56ca30b0c132c6.png" alt="Dajjal Game Banner" width="100%">
+</p>
+
+<p align="center">
+    <img src="https://img.shields.io/badge/Language-Java-orange" alt="Java">
+    <img src="https://img.shields.io/badge/Framework-LibGDX-red" alt="LibGDX">
+    <img src="https://img.shields.io/badge/Backend-SpringBoot-green" alt="Spring Boot">
+    <img src="https://img.shields.io/badge/Platform-Desktop-lightgrey" alt="Platform">
+    <img src="https://img.shields.io/badge/Status-Completed-success" alt="Status">
+</p>
 
 > **Proyek Akhir Pemrograman Berorientasi Objek (OOP) - Teknik Komputer UI 2025/2026** > _Game FPS 3D survival tentang pertempuran terakhir melawan kejahatan tertinggi di akhir zaman: **Dajjal**._
 

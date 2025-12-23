@@ -13,12 +13,12 @@ Game ini disubmit untuk memenuhi tugas akhir dan dapat dimainkan melalui **itch.
 
 ## 👥 Tim Pengembang (Kelompok 7)
 
-| Nama Anggota                   | NPM        | Role  |
-| :----------------------------- | :--------- |:------|
-| **Caesar Nur Falah Widiyanto** | 2406487052 | Mengelola pipeline aset visual dari tahap mentah hingga siap render di dalam engine. Bertanggung jawab memastikan seluruh model 3D, tekstur, dan elemen visual terintegrasi secara optimal, menjaga kualitas estetika permainan tetap tinggi tanpa membebani performa memori dan rendering. |
-| **Marshal Aufa Diliyana**      | 2406346913 | Memegang peran vital dalam pengembangan logika sistem utama dan arsitektur backend aplikasi. Bertanggung jawab penuh atas Game State Management yang mengatur alur permainan, serta membangun sistem Login Screen, otentikasi user, dan logika navigasi menu yang dinamis untuk memastikan integrasi sistem yang mulus. |
-| **Muhammad Hashif Jade**       | 2406396786 | Berfokus pada implementasi teknis sistem pertempuran (Combat System) dan responsivitas kontrol karakter. Menangani eksekusi interaksi antar-objek secara presisi, termasuk hitbox dan damage calculation, untuk menciptakan sensasi aksi yang intens, responsif, dan seimbang bagi pemain. |
-| **Zulfahmi Fajri**             | 2406345425 | Bertindak sebagai Lead Programmer yang merancang algoritma inti gameplay dan aturan dunia permainan. Bertanggung jawab mengintegrasikan logika mekanik yang kompleks dengan desain lingkungan 3D, serta memastikan seluruh interaksi dan fisika dalam game berjalan logis, kohesif, dan stabil.      |
+| Nama Anggota                   | NPM        | Role                                                                                                                                                                                                                                     |
+| :----------------------------- | :--------- |:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Caesar Nur Falah Widiyanto** | 2406487052 | **UI/HUD Specialist:** Ngurusin tampilan informasi layar pas main, juga ngurusin bar darah player, stamina, nyawa boss, sampe info stage biar pemain tau kondisi lagi aman atau sekarat.                                                 |
+| **Marshal Aufa Diliyana**      | 2406346913 | **Backend & System Architect:** Ngurusin backend game sama logika alur permainan, bikin sistem login yang aman ke server, sampe transisi menu yang mulus.                                                                                |
+| **Muhammad Hashif Jade**       | 2406396786 | **Combat Engineer:** Ngurusin di mekanik senjata buat lawan entitynya kyak animasi nembak dan reload, bikin kontrol karakter responsif, itungan damage pas, dan hitbox peluru yang akurat biar aksi tembak tembakan kerasa dapet banget. |
+| **Zulfahmi Fajri**             | 2406345425 | **Lead Programmer & 3D Artist:** Ngurusin otak teknis game ini, ngeintegrasiin semua sistem, ngerancang algoritma inti gameplay sekaligus yang bikin model 3D dan visual dunia game biar keliatan cakep dan realistis.                   |
 
 ## 👨‍🏫 Aslab Pendamping
 

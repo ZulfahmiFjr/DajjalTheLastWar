@@ -86,7 +86,7 @@ public class WorldRenderer implements Disposable {
     // method utama buat ngegambar semuanya, dipanggil dari gamescreen
     public void render(float delta, Terrain terrain, Array<ModelInstance> trees,
                        Array<BaseEnemy> enemies, ItemManager itemManager,
-                       Firearm weapon, Vector3 bulletStart, Vector3 bulletEnd, float tracerTimer) {
+                       Firearm weapon, Vector3 bulletStart, Vector3 bulletEnd, float tracerTimer, ParticleSystem particleSystem) {
 
         // bersihin layar dulu pake warna gelap
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -111,6 +111,11 @@ public class WorldRenderer implements Disposable {
 
         // gambar musuh
         for (BaseEnemy enemy : enemies) modelBatch.render(enemy.modelInstance, env);
+
+        // gambar partikel darah ambil dari object pool
+        if (particleSystem != null) {
+            particleSystem.render(modelBatch);
+        }
 
         // gambar item yang jatoh
         itemManager.render(modelBatch, env);

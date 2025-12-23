@@ -44,6 +44,8 @@ public class GameScreen implements Screen {
 
     // ini facade kita buat urusan gambar
     private WorldRenderer worldRenderer;
+    // object pool buat particle mati
+    private ParticleSystem particleSystem;
 
     // --- player stats & weapon ---
     private PlayerStats playerStats;
@@ -134,6 +136,9 @@ public class GameScreen implements Screen {
         Model majujM = ResourceManager.getInstance().assets.get("models/majuj/majuj.g3db", Model.class);
         Model dajjalM = ResourceManager.getInstance().assets.get("models/dajjal.g3db", Model.class);
         enemyFactory = new EnemyFactory(yajujM, majujM, dajjalM);
+
+        // inisialisasi object pool partikel
+        particleSystem = new ParticleSystem();
 
         waveManager = new WaveManager();
         waveManager.initLevelData(terrain);
@@ -242,7 +247,7 @@ public class GameScreen implements Screen {
         worldRenderer.render(
             delta, terrain, treeInstances, activeEnemies,
             itemManager, playerWeapon,
-            bulletOrigin, bulletDest, bulletTracerTimer
+            bulletOrigin, bulletDest, bulletTracerTimer, particleSystem
         );
 
         // render ui 2d tetep di gamescreen karena hud sifatnya overlay
@@ -267,6 +272,9 @@ public class GameScreen implements Screen {
             hud.showStageNotification(waveManager.getCurrentStageNum());
             waveManager.justChangedStage = false;
         }
+
+        // update sistem partikel biar animasinya jalan
+        particleSystem.update(delta);
 
         // logic spawn dajjal
         handleBossSpawn(delta);
@@ -374,6 +382,8 @@ public class GameScreen implements Screen {
                 enemy.countedAsDead = true;
 
                 itemManager.spawnItem(enemy.position.x, enemy.position.y + 1.0f, enemy.position.z);
+                // spawn darah menggunakan object pool
+                particleSystem.spawnBloodEffect(enemy.position.x, enemy.position.y + 1.0f, enemy.position.z);
             }
 
             if (enemy.isReadyToRemove) {
@@ -535,5 +545,6 @@ public class GameScreen implements Screen {
         if (worldRenderer != null) worldRenderer.dispose();
         if (hud != null) hud.dispose();
         if (itemManager != null) itemManager.dispose();
+        if (particleSystem != null) particleSystem.dispose();
     }
 }

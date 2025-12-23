@@ -115,6 +115,25 @@ public class GameScreen implements Screen {
         // player controller butuh kamera dari renderer
         playerController = new PlayerController(worldRenderer.cam, playerStats);
 
+        //listener buat efek player kena hit
+        playerStats.setListener(new PlayerStats.DamageListener() {
+            @Override
+            public void onDamageTaken() {
+                // efek layar merah
+                hud.showDamageFlash();
+
+                // efek darah muncrat di depan kamera
+                Vector3 bloodPos = new Vector3(worldRenderer.cam.position);
+                Vector3 forward = new Vector3(worldRenderer.cam.direction).nor().scl(0.5f); // 0.5 meter di depan muka
+                bloodPos.add(forward);
+
+                // panggil object pool buat spawn partikel
+                if (particleSystem != null) {
+                    particleSystem.spawnBloodEffect(bloodPos.x, bloodPos.y, bloodPos.z);
+                }
+            }
+        });
+
         // listener buat nyambungin tombol resume di HUD ke logic pause di sini
         hud.getResumeButton().addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
             @Override

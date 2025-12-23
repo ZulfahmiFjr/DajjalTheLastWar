@@ -28,6 +28,12 @@ public class PlayerStats {
     private float staminaRegenTimer = 0f;
     public boolean isSprinting = false;
 
+    public interface DamageListener {
+        void onDamageTaken();
+    }
+
+    private DamageListener damageListener;
+
     // konstruktor buat muat data koin pas awal game jalan
     public PlayerStats() {
         Preferences prefs = Gdx.app.getPreferences("UserSession");
@@ -89,10 +95,18 @@ public class PlayerStats {
         prefs.flush(); // wajib flush biar beneran kesimpen di harddisk/hp
     }
 
+    // method buat masang listener
+    public void setListener(DamageListener listener) {
+        this.damageListener = listener;
+    }
+
     // bagian damage player
     public void takeDamage(float dmg) {
         health -= dmg;
         if (health < 0) health = 0;
+        if (damageListener != null) {
+            damageListener.onDamageTaken();
+        }
     }
 
     public boolean isDead() {

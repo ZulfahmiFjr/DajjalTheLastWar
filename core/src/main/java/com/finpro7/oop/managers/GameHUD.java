@@ -3,6 +3,7 @@ package com.finpro7.oop.managers;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -12,9 +13,11 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
@@ -70,6 +73,9 @@ public class GameHUD {
     // buat callback dari gamescreen
     private TextButton btnResume;
 
+    // var buat layar merah pas kena damage
+    private Image damageOverlay;
+
     public GameHUD(Main game) {
         this.game = game;
 
@@ -120,6 +126,20 @@ public class GameHUD {
         // masukin tabel hud ke stage
         stage.addActor(hudTable);
 
+        // bikin tekstur merah transparan manual pake pixmap
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(1f, 0f, 0f, 0.3f); // warna merah
+        pixmap.fill();
+        Texture redTex = new Texture(pixmap);
+        pixmap.dispose(); // buang pixmapnya biar hemat memori
+        // inisialisasi imagenya
+        damageOverlay = new Image(new TextureRegionDrawable(new TextureRegion(redTex)));
+        damageOverlay.setFillParent(true); // menuhin satu layar
+        damageOverlay.setVisible(false); // sembunyiin dulu
+        damageOverlay.setTouchable(Touchable.disabled); // biar gak ngehalangin klik mouse pas nembak
+        // tambah ke stage
+        stage.addActor(damageOverlay);
+
         // siapin label notifikasi gede di tengah layar
         notificationLabel = new Label("", Main.skin, "title");
         notificationLabel.setFontScale(1.5f);
@@ -131,6 +151,23 @@ public class GameHUD {
         stage.addActor(notificationLabel);
 
         setupBossHealthBar();
+    }
+
+    // buat nampilin efek layar merah pas kena hit
+    public void showDamageFlash() {
+        if (damageOverlay == null) return;
+
+        // reset animasinya dulu
+        damageOverlay.clearActions();
+        damageOverlay.setVisible(true);
+        damageOverlay.setColor(1f, 0f, 0f, 0.75f); // merah 1/3 transparan
+
+        // efek ilang pelan pelan (fade out)
+        damageOverlay.addAction(Actions.sequence(
+            Actions.delay(0.2f), // tahan dulu
+            Actions.fadeOut(1.5f), // durasi 1.5 detik fadeoutnyaa
+            Actions.visible(false)
+        ));
     }
 
     // misahin setup bar darah boss biar gak kepanjangan

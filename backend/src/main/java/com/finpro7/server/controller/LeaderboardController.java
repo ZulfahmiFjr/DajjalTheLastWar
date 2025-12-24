@@ -21,7 +21,7 @@ public class LeaderboardController {
     @GetMapping("/leaderboard")
     public ResponseEntity<List<LeaderboardEntry>> getLeaderboard() {
         // Ambil data user yang udah diurutin sama repository tadi
-        List<User> topUsers = userRepository.findTop10ByOrderByCoinsDesc();
+        List<User> topUsers = userRepository.findTop100ByOrderByCoinsDesc();
 
         // Siapin list kosong buat nampung data yang udah "bersih"
         List<LeaderboardEntry> leaderboard = new ArrayList<>();

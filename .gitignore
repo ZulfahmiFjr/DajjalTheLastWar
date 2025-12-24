@@ -14,25 +14,6 @@ gradle-app.setting
 /server/build/
 /shared/build/
 
-/pack
-/release
-backend/src/main/resources/application-local.properties
-.env
-.env.*
-*.env
-*.log
-hs_err_pid*.log
-launcher.log
-*.zip
-*.exe
-*.msi
-*.dmg
-*.pkg
-*.AppImage
-.env.heroku
-/backend/build/
-
-
 ## Java:
 *.class
 *.war

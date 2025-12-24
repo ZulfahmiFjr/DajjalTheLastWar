@@ -54,7 +54,7 @@
 		"textures": [
 			{
 				"id": "base_color_texture",
-				"filename": "../textures/daun_pohon.png",
+				"filename": "daun_pohon.png",
 				"type": "DIFFUSE"
 			}
 		]
@@ -70,7 +70,7 @@
 		"textures": [
 			{
 				"id": "base_color_texture",
-				"filename": "../textures/batang_pohon.png",
+				"filename": "batang_pohon.png",
 				"type": "DIFFUSE"
 			}
 		]

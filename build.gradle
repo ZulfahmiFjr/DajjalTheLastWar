@@ -9,7 +9,7 @@ buildscript {
     maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
   }
   dependencies {
-
+    classpath "com.android.tools.build:gradle:8.7.3"
 
   }
 }
@@ -27,9 +27,10 @@ allprojects {
   }
 }
 
-configure(subprojects) {
+configure(subprojects - project(':android')- project(':backend')) {
   apply plugin: 'java-library'
-  sourceCompatibility = 17
+  sourceCompatibility = 11
+  targetCompatibility = 11
 
   // From https://lyze.dev/2021/04/29/libGDX-Internal-Assets-List/
   // The article can be helpful when using assets.txt in your project.
@@ -58,7 +59,7 @@ configure(subprojects) {
 
 subprojects {
   version = "$projectVersion"
-  ext.appName = 'FinalProject-OOP-7'
+  ext.appName = 'DajjalTheLastWar'
   repositories {
     mavenCentral()
     maven { url 'https://s01.oss.sonatype.org' }
@@ -70,4 +71,8 @@ subprojects {
   }
 }
 
-eclipse.project.name = 'FinalProject-OOP-7' + '-parent'
+eclipse.project.name = 'DajjalTheLastWar' + '-parent'
+
+task stage {
+  dependsOn ':backend:build'
+}

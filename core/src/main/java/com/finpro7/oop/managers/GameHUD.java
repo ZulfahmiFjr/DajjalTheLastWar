@@ -417,8 +417,10 @@ public class GameHUD {
     public void updatePauseInfo(float missionTimer, Vector3 camPos) {
         int minutes = (int) missionTimer / 60;
         int seconds = (int) missionTimer % 60;
-        timeLabel.setText(String.format("T+ %02d:%02d", minutes, seconds));
-        coordLabel.setText(String.format("LOC: %d, %d, %d", (int) camPos.x, (int) camPos.y, (int) camPos.z));
+        String minStr = (minutes < 10 ? "0" : "") + minutes;
+        String secStr = (seconds < 10 ? "0" : "") + seconds;
+        timeLabel.setText("T+ " + minStr + ":" + secStr);
+        coordLabel.setText("LOC: " + (int) camPos.x + ", " + (int) camPos.y + ", " + (int) camPos.z);
     }
 
     // ini buat nampilin notifikasi stage

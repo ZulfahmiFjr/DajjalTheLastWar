@@ -1,0 +1,153 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'org.gretty:gretty:3.1.5'
+    classpath "org.docstr:gwt-gradle-plugin:$gwtPluginVersion"
+
+  }
+}
+apply plugin: "gwt"
+apply plugin: "war"
+apply plugin: "org.gretty"
+
+gwt {
+  gwtVersion = "$gwtFrameworkVersion"
+  maxHeapSize = '1G'
+  minHeapSize = '1G'
+
+  src = files(file('src/main/java'), project(":core").file('src/main/java'))
+  modules += ["com.finpro7.oop.GdxDefinition"]
+  devModules += ["com.finpro7.oop.GdxDefinitionSuperdev"]
+  project.webAppDirName = "webapp"
+
+  compiler.strict = true
+  compiler.disableCastChecking = true
+
+  sourceLevel = 1.11
+}
+
+dependencies {
+  implementation "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+  implementation "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+  implementation "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+  implementation project(':core')
+
+}
+
+import org.akhikhl.gretty.AppBeforeIntegrationTestTask
+import org.docstr.gradle.plugins.gwt.GwtSuperDev
+
+gretty.httpPort = 8080
+gretty.resourceBase = "${project.layout.buildDirectory.asFile.get().absolutePath}/gwt/draftOut"
+gretty.contextPath = "/"
+gretty.portPropertiesFileName = "TEMP_PORTS.properties"
+
+tasks.register('startHttpServer') {
+  dependsOn("draftCompileGwt")
+  doFirst {
+    copy {
+      from "webapp"
+      into gretty.resourceBase
+    }
+    copy {
+      from "war"
+      into gretty.resourceBase
+    }
+  }
+}
+
+tasks.register('beforeRun', AppBeforeIntegrationTestTask) {
+  dependsOn("startHttpServer")
+  gretty {
+    integrationTestTask("superDev")
+  }
+  file("build/TEMP_PORTS.properties").delete()
+  interactive = false
+}
+
+tasks.register('superDev', GwtSuperDev) {
+  group("gwt")
+  dependsOn("beforeRun")
+  doFirst {
+    gwt.modules = gwt.devModules
+  }
+}
+
+clean.delete += [file("war")]
+
+var outputPath = "build/dist/"
+
+tasks.register('dist') {
+  dependsOn(["clean", "compileGwt"])
+  doLast {
+    file(outputPath).mkdirs()
+
+    // Copy output GWT (yang namanya udah di-hash/diacak)
+    copy {
+      from("build/gwt/out") {
+        exclude '**/*.symbolMap'
+      }
+      into outputPath
+    }
+
+    // Copy file webapp dasar
+    copy {
+      from("webapp") {
+        exclude 'index.html'
+        exclude 'refresh.png'
+      }
+      into outputPath
+    }
+
+    // Copy index.html sambil buang tombol refresh superdev
+    copy {
+      from("webapp") {
+        include 'index.html'
+        filter { String line -> line.replaceAll('<a class="superdev" .+', '') }
+      }
+      into outputPath
+    }
+
+    copy {
+      from "war"
+      into outputPath
+    }
+
+    // === INI TAMBAHAN PENTINGNYA ===
+    // Kita copy aset asli (tanpa hash) biar model 3D bisa nemu teksturnya
+    copy {
+      from "../assets"
+      into outputPath + "/assets"
+    }
+    // ===============================
+  }
+}
+
+tasks.register('addSource') {
+  doLast {
+    sourceSets.main.compileClasspath += files(project(':core').sourceSets.main.allJava.srcDirs)
+    sourceSets.main.compileClasspath += files("../core/build/generated/sources/annotationProcessor/java/main")
+    sourceSets.main.compileClasspath += files(sourceSets.main.output.resourcesDir)
+
+  }
+}
+
+tasks.register("distZip", Zip) {
+  dependsOn("dist")
+  from(outputPath)
+  archiveVersion = projectVersion
+  archiveBaseName.set("${appName}-dist")
+  destinationDirectory.set(file("build"))
+}
+
+tasks.compileGwt.dependsOn("addSource")
+tasks.draftCompileGwt.dependsOn("addSource")
+tasks.checkGwt.dependsOn("addSource")
+
+java.sourceCompatibility = JavaVersion.VERSION_11
+java.targetCompatibility = JavaVersion.VERSION_11
+sourceSets.main.java.srcDirs = [ "src/main/java/" ]
+
+eclipse.project.name = appName + "-html"
